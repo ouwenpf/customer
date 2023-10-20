@@ -28,7 +28,7 @@ LANGUAGE plpgsql;
 
 
 
-
+CREATE OR REPLACE FUNCTION pg_catalog.sysdate() RETURNS timestamp AS $$ select timeofday()::timestamp(0) ; $$ LANGUAGE sql VOLATILE PARALLEL SAFE;
 
 
 
