@@ -1,0 +1,1119 @@
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`test_10`;
+
+CREATE VIEW `uctoo_lvhuan`.`test_10` AS
+SELECT
+    `change_info`.`订单分部归属` AS `订单分部归属`,
+    `change_info`.`订单号` AS `订单号`,
+    `change_info`.`申请人` AS `申请人`,
+    `change_info`.`修改单据` AS `修改单据`,
+    `change_info`.`记录类型` AS `记录类型`,
+    `change_info`.`修改类型` AS `修改类型`,
+    `change_info`.`关联` AS `关联`,
+    `change_info`.`数量` AS `数量`,
+    `change_info`.`单价` AS `单价`,
+    `change_info`.`金额` AS `金额`,
+    `change_info`.`申请时间` AS `申请时间`,
+    `change_info`.`通过时间` AS `通过时间`
+FROM
+    (
+        SELECT
+            `bra`.`name` AS `订单分部归属`,
+            CONCAT('#', `main`.`FBillNo`) AS `订单号`,
+            `ad`.`nickname` AS `申请人`,
+            (
+                CASE `main`.`FTranType`
+                    WHEN 'PUR' THEN '采购单'
+                    WHEN 'SOR' THEN '入库单'
+                    WHEN 'SEL' THEN '销售单'
+                END
+            ) AS `修改单据`,
+            IF(
+                (`ass`.`FEntryID` = '0'),
+                '新增记录',
+                '修改后记录'
+            ) AS `记录类型`,
+            '货品' AS `修改类型`,
+            `ca`.`name` AS `关联`,
+            ROUND(`ass`.`FQty`, 1) AS `数量`,
+            ROUND(`ass`.`FPrice`, 3) AS `单价`,
+            ROUND(`ass`.`FAmount`, 2) AS `金额`,
+            `order_au`.`createtime` AS `申请时间`,
+            `order_au`.`updatetime` AS `通过时间`
+        FROM
+            (
+                (
+                    (
+                        (
+                            (
+                                `uctoo_lvhuan`.`uct_modify_order_audit` `order_au`
+                                JOIN `uctoo_lvhuan`.`trans_main_table` `main`
+                            )
+                            JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+                        )
+                        JOIN `uctoo_lvhuan`.`trans_assist_table` `ass`
+                    )
+                    JOIN `uctoo_lvhuan`.`uct_waste_cate` `ca`
+                )
+                JOIN `uctoo_lvhuan`.`uct_branch` `bra`
+            )
+        WHERE
+            (
+                (`order_au`.`status` = '5')
+                AND (`main`.`FTranType` = UPPER(SUBSTR(`order_au`.`field_list`, 3, 3)))
+                AND (`main`.`FInterID` = `order_au`.`order_id`)
+                AND (`order_au`.`admin_id` = `ad`.`id`)
+                AND (`ass`.`revise_state` >= 1)
+                AND (`ass`.`FinterID` = `main`.`FInterID`)
+                AND (`ass`.`FTranType` = `main`.`FTranType`)
+                AND (`ca`.`id` = `ass`.`FItemID`)
+                AND (`bra`.`setting_key` = `main`.`FRelateBrID`)
+            )
+        UNION ALL
+        SELECT
+            `bra`.`name` AS `订单分部归属`,
+            CONCAT('#', `main`.`FBillNo`) AS `订单号`,
+            `ad`.`nickname` AS `申请人`,
+            (
+                CASE `main`.`FTranType`
+                    WHEN 'PUR' THEN '采购单'
+                    WHEN 'SOR' THEN '入库单'
+                    WHEN 'SEL' THEN '销售单'
+                END
+            ) AS `修改单据`,
+            IF(
+                (`fee`.`FEntryID` = '0'),
+                '新增记录',
+                '修改后记录'
+            ) AS `记录类型`,
+            `fee`.`FFeeID` AS `修改类型`,
+            IFNULL(`fee`.`FFeePerson`, '') AS `关联`,
+            '' AS `数量`,
+            '' AS `单价`,
+            ROUND(`fee`.`FFeeAmount`, 2) AS `金额`,
+            `order_au`.`createtime` AS `申请时间`,
+            `order_au`.`updatetime` AS `通过时间`
+        FROM
+            (
+                (
+                    (
+                        (
+                            `uctoo_lvhuan`.`uct_modify_order_audit` `order_au`
+                            JOIN `uctoo_lvhuan`.`trans_main_table` `main`
+                        )
+                        JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+                    )
+                    JOIN `uctoo_lvhuan`.`trans_fee_table` `fee`
+                )
+                JOIN `uctoo_lvhuan`.`uct_branch` `bra`
+            )
+        WHERE
+            (
+                (`order_au`.`status` = '5')
+                AND (`main`.`FTranType` = UPPER(SUBSTR(`order_au`.`field_list`, 3, 3)))
+                AND (`main`.`FInterID` = `order_au`.`order_id`)
+                AND (`order_au`.`admin_id` = `ad`.`id`)
+                AND (`fee`.`revise_state` >= 1)
+                AND (`fee`.`FInterID` = `main`.`FInterID`)
+                AND (`fee`.`FTranType` = `main`.`FTranType`)
+                AND (`bra`.`setting_key` = `main`.`FRelateBrID`)
+            )
+        UNION ALL
+        SELECT
+            `bra`.`name` AS `订单分部归属`,
+            CONCAT('#', `main`.`FBillNo`) AS `订单号`,
+            `ad`.`nickname` AS `申请人`,
+            (
+                CASE `main`.`FTranType`
+                    WHEN 'PUR' THEN '采购单'
+                    WHEN 'SOR' THEN '入库单'
+                    WHEN 'SEL' THEN '销售单'
+                END
+            ) AS `修改单据`,
+            IF(
+                (`mat`.`FEntryID` = '0'),
+                '新增记录',
+                '修改后记录'
+            ) AS `记录类型`,
+            '辅材' AS `修改类型`,
+            `ma`.`name` AS `关联`,
+            ROUND(`mat`.`FUseCount`, 0) AS `数量`,
+            ROUND(`mat`.`FPrice`, 3) AS `单价`,
+            ROUND(`mat`.`FMeterielAmount`, 2) AS `金额`,
+            `order_au`.`createtime` AS `申请时间`,
+            `order_au`.`updatetime` AS `通过时间`
+        FROM
+            (
+                (
+                    (
+                        (
+                            `uctoo_lvhuan`.`uct_modify_order_audit` `order_au`
+                            JOIN `uctoo_lvhuan`.`trans_main_table` `main`
+                        )
+                        JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+                    )
+                    JOIN `uctoo_lvhuan`.`trans_materiel_table` `mat`
+                )
+                JOIN `uctoo_lvhuan`.`uct_materiel` `ma`
+            )
+        WHERE
+            (
+                (`order_au`.`status` = '5')
+                AND (`main`.`FTranType` = UPPER(SUBSTR(`order_au`.`field_list`, 3, 3)))
+                AND (`main`.`FInterID` = `order_au`.`order_id`)
+                AND (`order_au`.`admin_id` = `ad`.`id`)
+                AND (`mat`.`revise_state` >= 1)
+                AND (`mat`.`FInterID` = `main`.`FInterID`)
+                AND (`mat`.`FTranType` = `main`.`FTranType`)
+                AND (`mat`.`FMaterielID` = `ma`.`id`)
+                AND (`bra`.`setting_key` = `main`.`FRelateBrID`)
+            )
+        UNION ALL
+        SELECT
+            `bra`.`name` AS `订单分部归属`,
+            CONCAT('#', `main`.`FBillNo`) AS `订单号`,
+            `ad`.`nickname` AS `申请人`,
+            (
+                CASE `main`.`FTranType`
+                    WHEN 'PUR' THEN '采购单'
+                    WHEN 'SOR' THEN '入库单'
+                    WHEN 'SEL' THEN '销售单'
+                END
+            ) AS `修改单据`,
+            '修改前记录' AS `记录类型`,
+            '货品' AS `修改类型`,
+            `ca`.`name` AS `关联`,
+            ROUND(`ass_org`.`FQty`, 1) AS `数量`,
+            ROUND(`ass_org`.`FPrice`, 3) AS `单价`,
+            ROUND(`ass_org`.`FAmount`, 2) AS `金额`,
+            `order_au`.`createtime` AS `申请时间`,
+            `order_au`.`updatetime` AS `通过时间`
+        FROM
+            (
+                (
+                    (
+                        (
+                            (
+                                `uctoo_lvhuan`.`uct_modify_order_audit` `order_au`
+                                JOIN `uctoo_lvhuan`.`trans_main_table` `main`
+                            )
+                            JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+                        )
+                        JOIN `uctoo_lvhuan`.`uct_waste_cate` `ca`
+                    )
+                    JOIN `uctoo_lvhuan`.`uct_branch` `bra`
+                )
+                JOIN `uctoo_lvhuan`.`trans_assist` `ass_org`
+            )
+        WHERE
+            (
+                (`order_au`.`status` = '5')
+                AND (`main`.`FTranType` = UPPER(SUBSTR(`order_au`.`field_list`, 3, 3)))
+                AND (`main`.`FInterID` = `order_au`.`order_id`)
+                AND (`order_au`.`admin_id` = `ad`.`id`)
+                AND (`ass_org`.`FInterID` = `main`.`FInterID`)
+                AND (CONVERT(`ass_org`.`FTranType` USING utf8) = `main`.`FTranType`)
+                AND (`ca`.`id` = `ass_org`.`FItemID`)
+                AND (`bra`.`setting_key` = `main`.`FRelateBrID`)
+                AND (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM `uctoo_lvhuan`.`trans_assist_table` `ass`
+                        WHERE (
+                            (`ass_org`.`FInterID` = `ass`.`FinterID`)
+                            AND (`ass`.`FTranType` = CONVERT(`ass_org`.`FTranType` USING utf8))
+                            AND (`ass`.`revise_state` = 0)
+                            AND (`ass`.`FEntryID` > '0')
+                        )
+                    )
+                )
+            )
+        UNION ALL
+        SELECT
+            `bra`.`name` AS `订单分部归属`,
+            CONCAT('#', `main`.`FBillNo`) AS `订单号`,
+            `ad`.`nickname` AS `申请人`,
+            (
+                CASE `main`.`FTranType`
+                    WHEN 'PUR' THEN '采购单'
+                    WHEN 'SOR' THEN '入库单'
+                    WHEN 'SEL' THEN '销售单'
+                END
+            ) AS `修改单据`,
+            '修改前记录' AS `记录类型`,
+            `fee_org`.`FFeeID` AS `修改类型`,
+            IFNULL(`fee_org`.`FFeePerson`, '') AS `关联`,
+            '' AS `数量`,
+            '' AS `单价`,
+            ROUND(`fee_org`.`FFeeAmount`, 2) AS `金额`,
+            `order_au`.`createtime` AS `申请时间`,
+            `order_au`.`updatetime` AS `通过时间`
+        FROM
+            (
+                (
+                    (
+                        (
+                            `uctoo_lvhuan`.`uct_modify_order_audit` `order_au`
+                            JOIN `uctoo_lvhuan`.`trans_main_table` `main`
+                        )
+                        JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+                    )
+                    JOIN `uctoo_lvhuan`.`uct_branch` `bra`
+                )
+                JOIN `uctoo_lvhuan`.`trans_fee` `fee_org`
+            )
+        WHERE
+            (
+                (`order_au`.`status` = '5')
+                AND (`main`.`FTranType` = UPPER(SUBSTR(`order_au`.`field_list`, 3, 3)))
+                AND (`main`.`FInterID` = `order_au`.`order_id`)
+                AND (`order_au`.`admin_id` = `ad`.`id`)
+                AND (`fee_org`.`FInterID` = `main`.`FInterID`)
+                AND (CONVERT(`fee_org`.`FTranType` USING utf8) = `main`.`FTranType`)
+                AND (`bra`.`setting_key` = `main`.`FRelateBrID`)
+                AND (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM `uctoo_lvhuan`.`trans_fee_table` `fee`
+                        WHERE (
+                            (`fee_org`.`FInterID` = `fee`.`FInterID`)
+                            AND (`fee`.`FTranType` = CONVERT(`fee_org`.`FTranType` USING utf8))
+                            AND (`fee`.`revise_state` = 0)
+                            AND (`fee`.`FEntryID` > '0')
+                        )
+                    )
+                )
+            )
+        UNION ALL
+        SELECT
+            `bra`.`name` AS `订单分部归属`,
+            CONCAT('#', `main`.`FBillNo`) AS `订单号`,
+            `ad`.`nickname` AS `申请人`,
+            (
+                CASE `main`.`FTranType`
+                    WHEN 'PUR' THEN '采购单'
+                    WHEN 'SOR' THEN '入库单'
+                    WHEN 'SEL' THEN '销售单'
+                END
+            ) AS `修改单据`,
+            '修改前记录' AS `记录类型`,
+            '辅材' AS `修改类型`,
+            `ma`.`name` AS `关联`,
+            ROUND(`mat_org`.`FUseCount`, 0) AS `数量`,
+            ROUND(`mat_org`.`FPrice`, 3) AS `单价`,
+            ROUND(`mat_org`.`FMeterielAmount`, 2) AS `金额`,
+            `order_au`.`createtime` AS `申请时间`,
+            `order_au`.`updatetime` AS `通过时间`
+        FROM
+            (
+                (
+                    (
+                        (
+                            `uctoo_lvhuan`.`uct_modify_order_audit` `order_au`
+                            JOIN `uctoo_lvhuan`.`trans_main_table` `main`
+                        )
+                        JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+                    )
+                    JOIN `uctoo_lvhuan`.`uct_materiel` `ma`
+                )
+                JOIN `uctoo_lvhuan`.`uct_branch` `bra`
+            )
+        WHERE
+            (
+                (`order_au`.`status` = '5')
+                AND (`main`.`FTranType` = UPPER(SUBSTR(`order_au`.`field_list`, 3, 3)))
+                AND (`main`.`FInterID` = `order_au`.`order_id`)
+                AND (`order_au`.`admin_id` = `ad`.`id`)
+                AND (`mat_org`.`FInterID` = `main`.`FInterID`)
+                AND (CONVERT(`mat_org`.`FTranType` USING utf8) = `main`.`FTranType`)
+                AND (`mat_org`.`FMaterielID` = `ma`.`id`)
+                AND (`bra`.`setting_key` = `main`.`FRelateBrID`)
+                AND (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM `uctoo_lvhuan`.`trans_materiel_table` `mat`
+                        WHERE (
+                            (`mat_org`.`FInterID` = `mat`.`FInterID`)
+                            AND (`mat`.`FTranType` = CONVERT(`mat_org`.`FTranType` USING utf8))
+                            AND (`mat`.`revise_state` = 0)
+                            AND (`mat`.`FEntryID` > '0')
+                        )
+                    )
+                )
+            )
+    ) `change_info`
+ORDER BY
+    `change_info`.`订单号`,
+    `change_info`.`通过时间`;
+
+ERROR 1149 (42000): invalid input syntax for type double precision: "" at character: 1865
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`view_purchase_expense_collect`;
+
+CREATE VIEW `uctoo_lvhuan`.`view_purchase_expense_collect` AS
+SELECT
+    `uctoo_lvhuan`.`uct_waste_purchase_expense`.`purchase_id` AS `purchase_id`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '供应商人工补助费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `供应商人工补助`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '供应商车辆补助费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `供应商车辆补助`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '供应商垃圾补助费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `供应商垃圾补助`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `叉车费`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                        WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                    WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `叉车司机`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他收入' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `其他提货收入`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他收入' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他收入' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他收入' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                        WHEN '其他收入' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                    WHEN '其他收入' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `其他提货收入收款人`,
+    GROUP_CONCAT(
+        (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+            WHEN '其他收入' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`remark`
+            ELSE ''
+        END) SEPARATOR ''
+    ) AS `其他提货收入说明`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他支出' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `其他提货支出`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他支出' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他支出' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                WHEN '其他支出' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                        WHEN '其他支出' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+                    WHEN '其他支出' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `其他提货支出收款人`,
+    GROUP_CONCAT(
+        (CASE `uctoo_lvhuan`.`uct_waste_purchase_expense`.`usage`
+            WHEN '其他支出' THEN `uctoo_lvhuan`.`uct_waste_purchase_expense`.`remark`
+            ELSE ''
+        END) SEPARATOR ''
+    ) AS `其他提货支出说明`
+FROM `uctoo_lvhuan`.`uct_waste_purchase_expense`
+GROUP BY `uctoo_lvhuan`.`uct_waste_purchase_expense`.`purchase_id`;
+
+ERROR 1149 (42000): invalid input syntax for type double precision: "" at character: 1455
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`view_reimbursement_expense_collect`;
+
+CREATE VIEW `uctoo_lvhuan`.`view_reimbursement_expense_collect` AS
+SELECT
+    `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`purchase_id` AS `purchase_id`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '外请车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `外请车辆`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '公司车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `公司车辆`,
+    GROUP_CONCAT(
+        (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+            WHEN '外请车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+            WHEN '公司车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+            ELSE ''
+        END) SEPARATOR ''
+    ) AS `司机`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货专员人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `拉货专员人工`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货专员人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货专员人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货专员人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                        WHEN '拉货专员人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                    WHEN '拉货专员人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `拉货专员姓名`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货助理人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `拉货助理人工`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货助理人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货助理人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '拉货助理人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                        WHEN '拉货助理人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                    WHEN '拉货助理人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `拉货助理姓名`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '外请人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `外请人工`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '外请人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '外请人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '外请人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                        WHEN '外请人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                    WHEN '外请人工' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `外请人工姓名`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `叉车费`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                        WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                    WHEN '叉车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `叉车司机`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '停车费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `停车费`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '过路费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `过路费`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '磅费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `磅费`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '水费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `水费`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '餐费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `餐费`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '交通费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `交通费`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '住宿费' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `住宿费`,
+    ROUND(
+        SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '其他' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `其他报销费用`,
+    IF(
+        (SUM(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '其他' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '其他' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                WHEN '其他' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                        WHEN '其他' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+                    WHEN '其他' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `其他报销费用收款人`,
+    GROUP_CONCAT(
+        (CASE `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`usage`
+            WHEN '其他' THEN `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`remark`
+            ELSE ''
+        END) SEPARATOR ''
+    ) AS `其他报销费用说明`
+FROM
+    `uctoo_lvhuan`.`uct_waste_storage_return_fee`
+GROUP BY
+    `uctoo_lvhuan`.`uct_waste_storage_return_fee`.`purchase_id`;
+
+ERROR 1149 (42000): invalid input syntax for type double precision: "" at character: 1578
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`view_sort_expense_collect`;
+
+CREATE VIEW `uctoo_lvhuan`.`view_sort_expense_collect` AS
+SELECT
+    `view_sec`.`purchase_id` AS `purchase_id`,
+    ROUND(
+        SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '资源池分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `仓库分拣人工`,
+    IF(
+        (SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '资源池分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `view_sec`.`usage`
+                WHEN '资源池分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `view_sec`.`usage`
+                WHEN '资源池分拣人工' THEN `view_sec`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `view_sec`.`usage`
+                        WHEN '资源池分拣人工' THEN `view_sec`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `view_sec`.`usage`
+                    WHEN '资源池分拣人工' THEN `view_sec`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `仓库分拣人工姓名`,
+    ROUND(
+        SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '拉货人分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `拉货人分拣人工`,
+    IF(
+        (SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '拉货人分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `view_sec`.`usage`
+                WHEN '拉货人分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `view_sec`.`usage`
+                WHEN '拉货人分拣人工' THEN `view_sec`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `view_sec`.`usage`
+                        WHEN '拉货人分拣人工' THEN `view_sec`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `view_sec`.`usage`
+                    WHEN '拉货人分拣人工' THEN `view_sec`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `拉货人分拣人工姓名`,
+    ROUND(
+        SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '临时工分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `外请临时工分拣`,
+    IF(
+        (SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '临时工分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `view_sec`.`usage`
+                WHEN '临时工分拣人工' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `view_sec`.`usage`
+                WHEN '临时工分拣人工' THEN `view_sec`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `view_sec`.`usage`
+                        WHEN '临时工分拣人工' THEN `view_sec`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `view_sec`.`usage`
+                    WHEN '临时工分拣人工' THEN `view_sec`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `外请临时工姓名`,
+    ROUND(
+        SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '耗材费-太空包' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `耗材（太空袋费）`,
+    ROUND(
+        SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '耗材费-编织袋' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `耗材（编织袋费）`,
+    ROUND(
+        SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '其他' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ), 2
+    ) AS `其他入库费用`,
+    IF(
+        (SUM(
+            (CASE `view_sec`.`usage`
+                WHEN '其他' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        ) = MAX(
+            (CASE `view_sec`.`usage`
+                WHEN '其他' THEN `view_sec`.`price`
+                ELSE '0'
+            END)
+        )),
+        GROUP_CONCAT(
+            (CASE `view_sec`.`usage`
+                WHEN '其他' THEN `view_sec`.`receiver`
+                ELSE ''
+            END) SEPARATOR ''
+        ),
+        GROUP_CONCAT(
+            CONCAT_WS(
+                '',
+                CONVERT(
+                    (CASE `view_sec`.`usage`
+                        WHEN '其他' THEN `view_sec`.`price`
+                        ELSE ''
+                    END) USING utf8
+                ),
+                (CASE `view_sec`.`usage`
+                    WHEN '其他' THEN `view_sec`.`receiver`
+                    ELSE ''
+                END)
+            ) SEPARATOR ''
+        )
+    ) AS `其他入库费用收款人`,
+    GROUP_CONCAT(
+        (CASE `view_sec`.`usage`
+            WHEN '其他' THEN `view_sec`.`remark`
+            ELSE ''
+        END) SEPARATOR ''
+    ) AS `其他入库费用说明`
+FROM
+    (
+        SELECT
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`id` AS `id`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`purchase_id` AS `purchase_id`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`type` AS `type`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`usage` AS `usage`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`remark` AS `remark`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`price` AS `price`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`receiver` AS `receiver`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`createtime` AS `createtime`,
+            `uctoo_lvhuan`.`uct_waste_storage_expense`.`updatetime` AS `updatetime`
+        FROM
+            `uctoo_lvhuan`.`uct_waste_storage_expense`
+        UNION ALL
+        SELECT
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`id` AS `id`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`purchase_id` AS `purchase_id`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`type` AS `type`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`usage` AS `usage`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`remark` AS `remark`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`price` AS `price`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`receiver` AS `receiver`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`createtime` AS `createtime`,
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`.`updatetime` AS `updatetime`
+        FROM
+            `uctoo_lvhuan`.`uct_waste_storage_sort_expense`
+    ) `view_sec`
+GROUP BY
+    `view_sec`.`purchase_id`;
+
+ERROR 1149 (42000): invalid input syntax for type double precision: "" at character: 595
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_total_fee`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_total_fee` AS
+SELECT
+    `basep`.`id` AS `FInterID`,
+    'PUR' AS `FTranType`,
+    IFNULL(`pf`.`customer_profit`, '') AS `CustomerProfit`,
+    IFNULL(`pf`.`other_profit`, '') AS `OtherProfit`,
+    IFNULL(`pf`.`pick_fee`, '') AS `PickFee`,
+    IFNULL(`rf`.`car_fee`, '') AS `CarFee`,
+    IFNULL(`rf`.`man_fee`, '') AS `ManFee`,
+    IFNULL(`rf`.`other_return_fee`, '') AS `OtherReturnfee`,
+    IFNULL(`sg`.`sort_fee`, '') AS `SortFee`,
+    ROUND((IFNULL(`sg`.`materiel_fee`, '') + IFNULL(`basep`.`materiel_price`, '')), 2) AS `MaterielFee`,
+    IFNULL(`sg`.`other_sort_fee`, '') AS `OtherSortfee`,
+    IFNULL(`sf`.`sell_profit`, '') AS `SellProfit`,
+    IFNULL(`sf`.`sell_fee`, '') AS `SellFee`
+FROM
+    (
+        (
+            (
+                (
+                    (
+                        `uctoo_lvhuan`.`uct_waste_purchase` `basep`
+                        LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_rf` `rf`
+                        ON (`basep`.`id` = `rf`.`purchase_id`)
+                    )
+                    LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_sg` `sg`
+                    ON (`basep`.`id` = `sg`.`purchase_id`)
+                )
+                LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_pf` `pf`
+                ON (`basep`.`id` = `pf`.`purchase_id`)
+            )
+            LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_sf` `sf`
+            ON (`basep`.`id` = `sf`.`purchase_id`)
+        )
+    )
+UNION ALL
+SELECT
+    `osf`.`sell_id` AS `FInterID`,
+    'SEL' AS `FTranType`,
+    '' AS `CustomerProfit`,
+    '' AS `OtherProfit`,
+    '' AS `PickFee`,
+    '' AS `CarFee`,
+    '' AS `ManFee`,
+    '' AS `OtherReturnfee`,
+    '' AS `SortFee`,
+    '' AS `MaterielFee`,
+    '' AS `OtherSortfee`,
+    IFNULL(`osf`.`sell_profit`, '') AS `SellProfit`,
+    IFNULL(`osf`.`sell_fee`, '') AS `SellFee`
+FROM
+    `uctoo_lvhuan`.`trans_total_fee_osf` `osf`;
+
+ERROR 1149 (42000): invalid input syntax for type double precision: "" at character: 149

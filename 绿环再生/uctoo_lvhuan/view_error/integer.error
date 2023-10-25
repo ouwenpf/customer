@@ -1,0 +1,597 @@
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_total_cargo`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_total_cargo` AS
+SELECT
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`.`purchase_id` AS `FInterID`,
+    'PUR' AS `FTranType`,
+    SUM(`uctoo_lvhuan`.`uct_waste_purchase_cargo`.`net_weight`) AS `FQtyTotal`,
+    ROUND(SUM(`uctoo_lvhuan`.`uct_waste_purchase_cargo`.`total_price`), 2) AS `FAmountTotal`,
+    '' AS `FSourceInterId`,
+    '' AS `FSourceTranType`
+FROM
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`
+GROUP BY
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`.`purchase_id`
+
+UNION ALL
+
+SELECT
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`purchase_id` AS `FInterID`,
+    'SOR' AS `FTranType`,
+    SUM(`uctoo_lvhuan`.`uct_waste_storage_sort`.`net_weight`) AS `FQtyTotal`,
+    ROUND(SUM((`uctoo_lvhuan`.`uct_waste_storage_sort`.`net_weight` * `uctoo_lvhuan`.`uct_waste_storage_sort`.`presell_price`)), 2) AS `FAmountTotal`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`purchase_id` AS `FSourceInterId`,
+    'PUR' AS `FSourceTranType`
+FROM
+    `uctoo_lvhuan`.`uct_waste_storage_sort`
+GROUP BY
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`purchase_id`
+
+UNION ALL
+
+SELECT
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id` AS `FInterID`,
+    'SEL' AS `FTranType`,
+    SUM(`uctoo_lvhuan`.`uct_waste_sell_cargo`.`net_weight`) AS `FQtyTotal`,
+    ROUND(SUM((`uctoo_lvhuan`.`uct_waste_sell_cargo`.`net_weight` * `uctoo_lvhuan`.`uct_waste_sell_cargo`.`unit_price`)), 2) AS `FAmountTotal`,
+    IF(ISNULL(`uctoo_lvhuan`.`uct_waste_sell`.`purchase_id`), '', `uctoo_lvhuan`.`uct_waste_sell`.`purchase_id`) AS `FSourceInterId`,
+    IF(ISNULL(`uctoo_lvhuan`.`uct_waste_sell`.`purchase_id`), '', 'PUR') AS `FSourceTranType`
+FROM
+    (`uctoo_lvhuan`.`uct_waste_sell_cargo`
+    JOIN `uctoo_lvhuan`.`uct_waste_sell`)
+WHERE
+    (`uctoo_lvhuan`.`uct_waste_sell`.`id` = `uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id`)
+GROUP BY
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id`;
+	
+ERROR 1149 (42000): invalid input syntax for integer: "" at character: 312
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_total_cargo_sec`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_total_cargo_sec` AS
+SELECT
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id` AS `FInterID`,
+    'SEL' AS `FTranType`,
+    SUM(`uctoo_lvhuan`.`uct_waste_sell_cargo`.`net_weight`) AS `FQtyTotal`,
+    ROUND(SUM((`uctoo_lvhuan`.`uct_waste_sell_cargo`.`net_weight` * `uctoo_lvhuan`.`uct_waste_sell_cargo`.`unit_price`)), 2) AS `FAmountTotal`,
+    IF(ISNULL(`uctoo_lvhuan`.`uct_waste_sell`.`purchase_id`), '', `uctoo_lvhuan`.`uct_waste_sell`.`purchase_id`) AS `FSourceInterId`,
+    IF(ISNULL(`uctoo_lvhuan`.`uct_waste_sell`.`purchase_id`), '', 'PUR') AS `FSourceTranType`
+FROM
+    (`uctoo_lvhuan`.`uct_waste_sell_cargo`
+    JOIN `uctoo_lvhuan`.`uct_waste_sell`)
+WHERE
+    (`uctoo_lvhuan`.`uct_waste_sell`.`id` = `uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id`)
+GROUP BY
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id`;
+
+ERROR 1149 (42000): invalid input syntax for integer: "" at character: 411
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_assist`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_assist` AS
+SELECT
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`.`purchase_id` AS `FInterID`,
+    'PUR' AS `FTranType`,
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`.`id` AS `FEntryID`,
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`.`cate_id` AS `FItemID`,
+    '1' AS `FUnitID`,
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`.`net_weight` AS `FQty`,
+    `uctoo_lvhuan`.`uct_waste_purchase_cargo`.`unit_price` AS `FPrice`,
+    ROUND(`uctoo_lvhuan`.`uct_waste_purchase_cargo`.`total_price`, 2) AS `FAmount`,
+    '' AS `disposal_way`,
+    `uctoo_lvhuan`.`uct_waste_cate`.`value_type` AS `value_type`,
+    '' AS `FbasePrice`,
+    '' AS `FbaseAmount`,
+    '' AS `Ftaxrate`,
+    '' AS `Fbasetax`,
+    '' AS `Fbasetaxamount`,
+    '' AS `FPriceRef`,
+    DATE_FORMAT(FROM_UNIXTIME(`uctoo_lvhuan`.`uct_waste_purchase_cargo`.`createtime`), '%Y-%m-%d %H:%i:%S') AS `FDCTime`,
+    '' AS `FSourceInterID`,
+    '' AS `FSourceTranType`
+FROM
+    (`uctoo_lvhuan`.`uct_waste_purchase_cargo`
+    JOIN `uctoo_lvhuan`.`uct_waste_cate`)
+WHERE
+    (`uctoo_lvhuan`.`uct_waste_purchase_cargo`.`cate_id` = `uctoo_lvhuan`.`uct_waste_cate`.`id`)
+UNION ALL
+SELECT
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`purchase_id` AS `FInterID`,
+    'SOR' AS `FTranType`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`id` AS `FEntryID`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`cargo_sort` AS `FItemID`,
+    '1' AS `FUnitID`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`net_weight` AS `FQty`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`presell_price` AS `FPrice`,
+    ROUND((`uctoo_lvhuan`.`uct_waste_storage_sort`.`presell_price` * `uctoo_lvhuan`.`uct_waste_storage_sort`.`net_weight`), 2) AS `FAmount`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`disposal_way` AS `disposal_way`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`value_type` AS `value_type`,
+    '' AS `FbasePrice`,
+    '' AS `FbaseAmount`,
+    '' AS `Ftaxrate`,
+    '' AS `Fbasetax`,
+    '' AS `Fbasetaxamount`,
+    '' AS `FPriceRef`,
+    DATE_FORMAT(FROM_UNIXTIME(IF((`uctoo_lvhuan`.`uct_waste_storage_sort`.`sort_time` > `uctoo_lvhuan`.`uct_waste_storage_sort`.`createtime`), `uctoo_lvhuan`.`uct_waste_storage_sort`.`sort_time`, `uctoo_lvhuan`.`uct_waste_storage_sort`.`createtime`)), '%Y-%m-%d %H:%i:%S') AS `FDCTime`,
+    `uctoo_lvhuan`.`uct_waste_storage_sort`.`purchase_id` AS `FSourceInterID`,
+    'PUR' AS `FSourceTranType`
+FROM
+    `uctoo_lvhuan`.`uct_waste_storage_sort`
+UNION ALL
+SELECT
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id` AS `FInterID`,
+    'SEL' AS `FTranType`,
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`id` AS `FEntryID`,
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`cate_id` AS `FItemID`,
+    '1' AS `FUnitID`,
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`net_weight` AS `FQty`,
+    `uctoo_lvhuan`.`uct_waste_sell_cargo`.`unit_price` AS `FPrice`,
+    ROUND((`uctoo_lvhuan`.`uct_waste_sell_cargo`.`unit_price` * `uctoo_lvhuan`.`uct_waste_sell_cargo`.`net_weight`), 2) AS `FAmount`,
+    '' AS `disposal_way`,
+    `uctoo_lvhuan`.`uct_waste_cate`.`value_type` AS `value_type`,
+    '' AS `FbasePrice`,
+    '' AS `FbaseAmount`,
+    '' AS `Ftaxrate`,
+    '' AS `Fbasetax`,
+    '' AS `Fbasetaxamount`,
+    '' AS `FPriceRef`,
+    DATE_FORMAT(FROM_UNIXTIME(`uctoo_lvhuan`.`uct_waste_sell_cargo`.`createtime`), '%Y-%m-%d %H:%i:%S') AS `FDCTime`,
+    IF((`uctoo_lvhuan`.`uct_waste_sell`.`purchase_id` > 0), `uctoo_lvhuan`.`uct_waste_sell`.`purchase_id`, '') AS `FSourceInterID`,
+    IF((`uctoo_lvhuan`.`uct_waste_sell`.`purchase_id` > 0), 'PUR', '') AS `FSourceTranType`
+FROM
+    ((`uctoo_lvhuan`.`uct_waste_sell_cargo`
+    JOIN `uctoo_lvhuan`.`uct_waste_sell`)
+    JOIN `uctoo_lvhuan`.`uct_waste_cate`)
+WHERE
+    ((`uctoo_lvhuan`.`uct_waste_sell_cargo`.`sell_id` = `uctoo_lvhuan`.`uct_waste_sell`.`id`)
+    AND (`uctoo_lvhuan`.`uct_waste_cate`.`id` = `uctoo_lvhuan`.`uct_waste_sell_cargo`.`cate_id`));
+
+ERROR 1149 (42000): invalid input syntax for integer: "" at character: 809
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_daily_sor`;
+CREATE VIEW `uctoo_lvhuan`.`trans_daily_sor` AS
+SELECT
+    `dsor`.`FRelateBrID` AS `FRelateBrID`,
+    `dsor`.`FInterID` AS `FInterID`,
+    `dsor`.`FDate` AS `FDate`,
+    `dsor`.`FSupplyID` AS `FSupplyID`,
+    `dsor`.`Fbusiness` AS `Fbusiness`,
+    `dsor`.`FDeptID` AS `FDeptID`,
+    `dsor`.`FEmpID` AS `FEmpID`,
+    `dsor`.`FPOStyle` AS `FPOStyle`,
+    `dsor`.`FPOPrecent` AS `FPOPrecent`,
+    `dsor`.`profit` AS `profit`,
+    `dsor`.`weight` AS `weight`,
+    `dsor`.`transport_pay` AS `transport_pay`,
+    `dsor`.`classify_fee` AS `classify_fee`,
+    `dsor`.`material_pay` AS `material_pay`,
+    `dsor`.`total_pay` AS `total_pay`
+FROM (
+    SELECT
+        `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+        MAX(CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType` WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`FInterID` ELSE '0' END) AS `FInterID`,
+        MAX(CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType` WHEN 'SOR' THEN `uctoo_lvhuan`.`trans_main_table`.`FDate` WHEN 'SEL' THEN `uctoo_lvhuan`.`trans_main_table`.`FDate` END) AS `FDate`,
+        CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType` WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`FSupplyID` ELSE '' END AS `FSupplyID`,
+        `uctoo_lvhuan`.`trans_main_table`.`Fbusiness` AS `Fbusiness`,
+        `uctoo_lvhuan`.`trans_main_table`.`FDeptID` AS `FDeptID`,
+        `uctoo_lvhuan`.`trans_main_table`.`FEmpID` AS `FEmpID`,
+        `uctoo_lvhuan`.`trans_main_table`.`FPOStyle` AS `FPOStyle`,
+        `uctoo_lvhuan`.`trans_main_table`.`FPOPrecent` AS `FPOPrecent`,
+        ROUND(
+            (
+                (
+                    (
+                        (
+                            (
+                                (
+                                    (
+                                        (
+                                            (
+                                                SUM(
+                                                    CASE
+                                                        CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                                        WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFAmount`
+                                                        WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFAmount`
+                                                        ELSE 0
+                                                    END
+                                                )
+                                                - SUM(
+                                                    CASE
+                                                        `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                                        WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFAmount`
+                                                        ELSE 0
+                                                    END
+                                                )
+                                            )
+                                            - SUM(
+                                                CASE
+                                                    `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                                    WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                                                    ELSE 0
+                                                END
+                                            )
+                                        )
+                                        - SUM(
+                                            CASE
+                                                `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                                WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalThird`
+                                                ELSE 0
+                                            END
+                                        )
+                                    )
+                                    - SUM(
+                                        CASE
+                                            CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                            WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                                            ELSE 0
+                                        END
+                                    )
+                                )
+                                - SUM(
+                                    CASE
+                                        CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                        WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                                        ELSE 0
+                                    END
+                                )
+                            )
+                            - SUM(
+                                CASE
+                                    `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                    WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalForth`
+                                    ELSE 0
+                                END
+                            )
+                        )
+                        - SUM(
+                            CASE
+                                CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalThird`
+                                ELSE 0
+                            END
+                        )
+                    )
+                    + SUM(
+                        CASE
+                            CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                            WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                            ELSE 0
+                        END
+                    )
+                    + SUM(
+                        CASE
+                            CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                            WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                            ELSE 0
+                        END
+                    )
+                    + SUM(
+                        CASE
+                            `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                            WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                            ELSE 0
+                        END
+                    )
+                )
+            ),
+            3
+        ) AS `profit`,
+        SUM(
+            CASE
+                CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFQty`
+                WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFQty`
+                ELSE '0'
+            END
+        ) AS `weight`,
+        ROUND(
+            SUM(
+                CASE
+                    `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                    WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                    ELSE 0
+                END
+            ),
+            3
+        ) AS `transport_pay`,
+        ROUND(
+            SUM(
+                CASE
+                    CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                    WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                    ELSE 0
+                END
+            ),
+            3
+        ) AS `classify_fee`,
+        ROUND(
+            SUM(
+                CASE
+                    CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                    WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                    ELSE 0
+                END
+            ),
+            3
+        ) AS `material_pay`,
+        SUM(
+            CASE
+                `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                WHEN 'PUR' THEN (
+                        `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                        + `uctoo_lvhuan`.`trans_main_table`.`TalThird`
+                    )
+                    + `uctoo_lvhuan`.`trans_main_table`.`TalForth`
+                WHEN 'SOR' THEN (
+                        `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                        + `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                    )
+                    + `uctoo_lvhuan`.`trans_main_table`.`TalThird`
+                WHEN 'SEL' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                ELSE 0
+            END
+        ) AS `total_pay`
+    FROM
+        `uctoo_lvhuan`.`trans_main_table`
+    WHERE
+        (
+            `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle` <> '2'
+            AND `uctoo_lvhuan`.`trans_main_table`.`FCorrent` = 1
+            AND `uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1
+        )
+    GROUP BY
+        `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+        `uctoo_lvhuan`.`trans_main_table`.`FBillNo`
+) `dsor`
+WHERE
+    DATE_FORMAT(`dsor`.`FDate`, '%Y%m%d') = CURDATE();
+
+ERROR 1149 (42000): invalid input syntax for integer: "" at character: 1091
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_finishcount`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_finishcount` AS
+SELECT
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FDeptID` AS `FDeptID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FEmpID` AS `FEmpID`,
+    (SUM(`uctoo_lvhuan`.`trans_main_table`.`FCancellation`) - SUM(`uctoo_lvhuan`.`trans_main_table`.`FCorrent`)) AS `Unfinished`
+FROM
+    `uctoo_lvhuan`.`trans_main_table`
+WHERE
+    (
+        DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') >= DATE_FORMAT('2019-01-01', '%Y-%m-%d')
+        AND `uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'PUR'
+    )
+GROUP BY
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FDeptID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FEmpID`
+
+UNION ALL
+
+SELECT
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    '3' AS `FDeptID`,
+    '-' AS `FEmpID`,
+    (SUM(`uctoo_lvhuan`.`trans_main_table`.`FCancellation`) - SUM(`uctoo_lvhuan`.`trans_main_table`.`FUpStockWhenSave`)) AS `Unfinished`
+FROM
+    `uctoo_lvhuan`.`trans_main_table`
+WHERE
+    (
+        `uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SOR'
+        AND `uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1
+    )
+GROUP BY
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`;
+
+ERROR 1149 (42000): invalid input syntax for integer: "-" at character: 818
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_month_sor`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_month_sor` AS
+SELECT
+    `dsor`.`FRelateBrID` AS `FRelateBrID`,
+    `dsor`.`FInterID` AS `FInterID`,
+    `dsor`.`FDate` AS `FDate`,
+    `dsor`.`FSupplyID` AS `FSupplyID`,
+    `dsor`.`Fbusiness` AS `Fbusiness`,
+    `dsor`.`FDeptID` AS `FDeptID`,
+    `dsor`.`FEmpID` AS `FEmpID`,
+    `dsor`.`FPOStyle` AS `FPOStyle`,
+    `dsor`.`FPOPrecent` AS `FPOPrecent`,
+    `dsor`.`profit` AS `profit`,
+    `dsor`.`weight` AS `weight`,
+    `dsor`.`transport_pay` AS `transport_pay`,
+    `dsor`.`classify_fee` AS `classify_fee`,
+    `dsor`.`material_pay` AS `material_pay`,
+    `dsor`.`total_pay` AS `total_pay`
+FROM
+    (
+        SELECT
+            `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+            MAX((CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType` WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`FInterID` ELSE '0' END)) AS `FInterID`,
+            MAX((CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType` WHEN 'SOR' THEN `uctoo_lvhuan`.`trans_main_table`.`FDate` WHEN 'SEL' THEN `uctoo_lvhuan`.`trans_main_table`.`FDate` END)) AS `FDate`,
+            (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType` WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`FSupplyID` ELSE '' END) AS `FSupplyID`,
+            `uctoo_lvhuan`.`trans_main_table`.`Fbusiness` AS `Fbusiness`,
+            `uctoo_lvhuan`.`trans_main_table`.`FDeptID` AS `FDeptID`,
+            `uctoo_lvhuan`.`trans_main_table`.`FEmpID` AS `FEmpID`,
+            `uctoo_lvhuan`.`trans_main_table`.`FPOStyle` AS `FPOStyle`,
+            `uctoo_lvhuan`.`trans_main_table`.`FPOPrecent` AS `FPOPrecent`,
+            ROUND(
+                (
+                    (
+                        (
+                            (
+                                (
+                                    (
+                                        (
+                                            (
+                                                (
+                                                    (
+                                                        SUM(
+                                                            (CASE
+                                                                CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                                                WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFAmount`
+                                                                WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFAmount`
+                                                                ELSE 0
+                                                            END)
+                                                        )
+                                                        -
+                                                        SUM(
+                                                            (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                                                WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFAmount`
+                                                                ELSE 0
+                                                            END)
+                                                        )
+                                                    )
+                                                    -
+                                                    SUM(
+                                                        (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                                            WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                                                            ELSE 0
+                                                        END)
+                                                    )
+                                                )
+                                                -
+                                                SUM(
+                                                    (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                                        WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalThird`
+                                                        ELSE 0
+                                                    END)
+                                                )
+                                            )
+                                            -
+                                            SUM(
+                                                (CASE
+                                                    CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                                    WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                                                    ELSE 0
+                                                END)
+                                            )
+                                        )
+                                        -
+                                        SUM(
+                                            (CASE
+                                                CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                                WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                                                ELSE 0
+                                            END)
+                                        )
+                                    )
+                                    -
+                                    SUM(
+                                        (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                                            WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalForth`
+                                            ELSE 0
+                                        END)
+                                    )
+                                )
+                                -
+                                SUM(
+                                    (CASE
+                                        CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                        WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalThird`
+                                        ELSE 0
+                                    END)
+                                )
+                            )
+                            +
+                            SUM(
+                                (CASE
+                                    CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                    WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                                    ELSE 0
+                                END)
+                            )
+                        )
+                        +
+                        SUM(
+                            (CASE
+                                CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                                WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                                ELSE 0
+                            END)
+                        )
+                    )
+                    -
+                    SUM(
+                        (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                            WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                            ELSE 0
+                        END)
+                    )
+                ),
+                3
+            ) AS `profit`,
+            SUM(
+                (CASE
+                    CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                    WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFQty`
+                    WHEN 'SEL1' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFQty`
+                    ELSE '0'
+                END)
+            ) AS `weight`,
+            ROUND(
+                SUM(
+                    (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                        WHEN 'PUR' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                        ELSE 0
+                    END)
+                ),
+                3
+            ) AS `transport_pay`,
+            ROUND(
+                SUM(
+                    (CASE
+                        CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                        WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalFrist`
+                        ELSE 0
+                    END)
+                ),
+                3
+            ) AS `classify_fee`,
+            ROUND(
+                SUM(
+                    (CASE
+                        CONCAT(`uctoo_lvhuan`.`trans_main_table`.`FTranType`, `uctoo_lvhuan`.`trans_main_table`.`FSaleStyle`)
+                        WHEN 'SOR0' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                        ELSE 0
+                    END)
+                ),
+                3
+            ) AS `material_pay`,
+            SUM(
+                (CASE `uctoo_lvhuan`.`trans_main_table`.`FTranType`
+                    WHEN 'PUR' THEN ((`uctoo_lvhuan`.`trans_main_table`.`TalSecond` + `uctoo_lvhuan`.`trans_main_table`.`TalThird`) + `uctoo_lvhuan`.`trans_main_table`.`TalForth`)
+                    WHEN 'SOR' THEN ((`uctoo_lvhuan`.`trans_main_table`.`TalFrist` + `uctoo_lvhuan`.`trans_main_table`.`TalSecond`) + `uctoo_lvhuan`.`trans_main_table`.`TalThird`)
+                    WHEN 'SEL' THEN `uctoo_lvhuan`.`trans_main_table`.`TalSecond`
+                    ELSE 0
+                END)
+            ) AS `total_pay`
+        FROM
+            `uctoo_lvhuan`.`trans_main_table`
+        WHERE
+            (
+                (`uctoo_lvhuan`.`trans_main_table`.`FSaleStyle` <> '2')
+                AND
+                (`uctoo_lvhuan`.`trans_main_table`.`FCorrent` = 1)
+            )
+        GROUP BY
+            `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+            `uctoo_lvhuan`.`trans_main_table`.`FBillNo`
+    ) `dsor`
+WHERE
+    NOT (`dsor`.`FInterID` IN (SELECT `uctoo_lvhuan`.`trans_month_sor_table`.`FInterID` FROM `uctoo_lvhuan`.`trans_month_sor_table`));
+
+ERROR 1149 (42000): invalid input syntax for integer: "" at character: 1090

@@ -1,0 +1,140 @@
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`test_4`;
+
+CREATE VIEW `uctoo_lvhuan`.`test_4` AS
+SELECT
+    `cus`.`branch_id` AS `branch_id`,
+    `cus`.`company_name` AS `company_name`,
+    `cus`.`liasion` AS `liasion`,
+    `item`.`shipment_ask` AS `shipment_ask`,
+    `item`.`shipment_answer` AS `shipment_answer`,
+    `item`.`staff_cooperate` AS `staff_cooperate`,
+    `item`.`civilized_operation` AS `civilized_operation`,
+    `item`.`customer_stipulate` AS `customer_stipulate`,
+    `item`.`now_settle` AS `now_settle`,
+    `item`.`settle_accuracy` AS `settle_accuracy`,
+    `item`.`handle_rationality` AS `handle_rationality`,
+    `item`.`receipts_timeliness` AS `receipts_timeliness`,
+    `item`.`report_accuracy` AS `report_accuracy`,
+    `item`.`communicate_smooth` AS `communicate_smooth`,
+    `item`.`complaint_timeliness` AS `complaint_timeliness`,
+    `item`.`verify_track` AS `verify_track`,
+    `item`.`regular_visits` AS `regular_visits`,
+    `item`.`report_to_duty` AS `report_to_duty`,
+    `item`.`working_attitude` AS `working_attitude`,
+    `item`.`packaging_work` AS `packaging_work`,
+    `item`.`shipshape` AS `shipshape`,
+    `item`.`qualifications_update` AS `qualifications_update`,
+    `item`.`assess_support` AS `assess_support`,
+    `item`.`emergency_container` AS `emergency_container`,
+    `item`.`environmental_consultation` AS `environmental_consultation`,
+    `gra`.`item1` AS `item1`,
+    `gra`.`item2` AS `item2`,
+    `gra`.`item3` AS `item3`,
+    `gra`.`item4` AS `item4`,
+    `gra`.`item5` AS `item5`,
+    `gra`.`item6` AS `item6`,
+    `gra`.`item7` AS `item7`,
+    `gra`.`csi` AS `csi`,
+    `item`.`extend_service` AS `extend_service`,
+    `item`.`propose` AS `propose`
+FROM
+    (
+        (
+            `uctoo_lvhuan`.`uct_customer_question_item` `item`
+            JOIN `uctoo_lvhuan`.`uct_customer_question` `cus`
+            ON (`item`.`question_id` = `cus`.`id`)
+        )
+        JOIN `uctoo_lvhuan`.`uct_customer_question_grade` `gra`
+        ON (`gra`.`question_id` = `cus`.`id`)
+    )
+WHERE
+    (
+        (`cus`.`branch_id` <> 7)
+        AND (`cus`.`branch_id` <> 0)
+    )
+GROUP BY
+    `cus`.`phone`;
+
+ERROR 8009 (HY000): could not determine which collation to use for view column "extend_service"HINT:  Use the COLLATE clause to set the collation explicitly.
+
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_daily_wh_profit`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_daily_wh_profit` AS
+SELECT
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeeID` AS `FFeeID`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeeType` AS `FFeeType`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeePerson` AS `FFeePerson`,
+    SUM(`uctoo_lvhuan`.`trans_fee_table`.`FFeeAmount`) AS `FFeeAmount`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeebaseAmount` AS `FFeebaseAmount`,
+    `uctoo_lvhuan`.`trans_fee_table`.`Ftaxrate` AS `Ftaxrate`,
+    `uctoo_lvhuan`.`trans_fee_table`.`Fbasetax` AS `Fbasetax`,
+    `uctoo_lvhuan`.`trans_fee_table`.`Fbasetaxamount` AS `Fbasetaxamount`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FPriceRef` AS `FPriceRef`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_fee_table`.`FFeetime`, '%Y-%m-%d') AS `FFeetime`
+FROM
+    (`uctoo_lvhuan`.`trans_fee_table`
+    JOIN `uctoo_lvhuan`.`trans_main_table`)
+WHERE
+    ((`uctoo_lvhuan`.`trans_fee_table`.`FFeeID` = '资源池分拣人工')
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SOR')
+    AND (`uctoo_lvhuan`.`trans_fee_table`.`FInterID` = `uctoo_lvhuan`.`trans_main_table`.`FInterID`)
+    AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_fee_table`.`FFeetime`, '%Y-%m-%d') = CURDATE())
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1))
+GROUP BY
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeePerson`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_fee_table`.`FFeetime`, '%Y-%m-%d');
+
+ERROR 8009 (HY000): could not determine which collation to use for view column "FFeebaseAmount"HINT:  Use the COLLATE clause to set the collation explicitly.
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_month_wh_profit`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_month_wh_profit` AS
+SELECT
+    `whprofit`.`FRelateBrID` AS `FRelateBrID`,
+    `whprofit`.`FFeeID` AS `FFeeID`,
+    `whprofit`.`FFeeType` AS `FFeeType`,
+    `whprofit`.`FFeePerson` AS `FFeePerson`,
+    `whprofit`.`FFeeAmount` AS `FFeeAmount`,
+    `whprofit`.`FFeebaseAmount` AS `FFeebaseAmount`,
+    `whprofit`.`Ftaxrate` AS `Ftaxrate`,
+    `whprofit`.`Fbasetax` AS `Fbasetax`,
+    `whprofit`.`Fbasetaxamount` AS `Fbasetaxamount`,
+    `whprofit`.`FPriceRef` AS `FPriceRef`,
+    `whprofit`.`FFeetime` AS `FFeetime`
+FROM
+    (
+        SELECT
+            `trans_main`.`FRelateBrID` AS `FRelateBrID`,
+            `trans_fee`.`FFeeID` AS `FFeeID`,
+            `trans_fee`.`FFeeType` AS `FFeeType`,
+            `trans_fee`.`FFeePerson` AS `FFeePerson`,
+            SUM(`trans_fee`.`FFeeAmount`) AS `FFeeAmount`,
+            `trans_fee`.`FFeebaseAmount` AS `FFeebaseAmount`,
+            `trans_fee`.`Ftaxrate` AS `Ftaxrate`,
+            `trans_fee`.`Fbasetax` AS `Fbasetax`,
+            `trans_fee`.`Fbasetaxamount` AS `Fbasetaxamount`,
+            `trans_fee`.`FPriceRef` AS `FPriceRef`,
+            DATE_FORMAT(`trans_fee`.`FFeetime`, '%Y-%m-%d') AS `FFeetime`
+        FROM
+            (`uctoo_lvhuan`.`trans_fee`
+            JOIN `uctoo_lvhuan`.`trans_main`)
+        WHERE
+            ((`trans_fee`.`FFeeID` = '资源池分拣人工')
+            AND (`trans_main`.`FTranType` = 'SOR')
+            AND (`trans_fee`.`FInterID` = `trans_main`.`FInterID`)
+            AND (`trans_main`.`FCorrent` = 1))
+        GROUP BY
+            `trans_main`.`FRelateBrID`,
+            `trans_fee`.`FFeePerson`,
+            DATE_FORMAT(`trans_fee`.`FFeetime`, '%Y-%m-%d')
+    ) `whprofit`
+WHERE
+    (NOT (`whprofit`.`FFeetime` IN (SELECT `uctoo_lvhuan`.`trans_month_wh_profit_table`.`FFeetime` FROM `uctoo_lvhuan`.`trans_month_wh_profit_table`)));
+
+ERROR 8009 (HY000): could not determine which collation to use for view column "FFeebaseAmount"HINT:  Use the COLLATE clause to set the collation explicitly.

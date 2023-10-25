@@ -1419,7 +1419,7 @@ $$;
 
 
 
-CREATE OR REPLACE PROCEDURE uctoo_lvhuan.operate_daily_report(_begin_time DATE, _end_time DATE) 
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."operate-daily-report"(_begin_time DATE, _end_time DATE) 
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -1461,6 +1461,277 @@ BEGIN
     COMMIT;
 END;
 $$;
+
+
+
+
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."operate-daily-report-v1"() 
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _test_date DATE := '2020-01-01';
+	rank INT := 0;
+    classname VARCHAR := NULL;
+BEGIN
+    -- 开始事务
+    START TRANSACTION;
+    
+    WHILE _test_date < CURRENT_DATE LOOP
+	
+    INSERT INTO lh_dw.data_statistics_results(time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, "group", val1, val2, val3) 
+    SELECT 'D' AS time_dims, DATE_SUB(_test_date, INTERVAL 1 DAY) AS time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) AS begin_time, 
+           CAST(CAST(_test_date AS DATE) AS DATETIME) AS end_time, '分部-部门' AS data_dims, bs.key AS data_val, 'operate-daily-report-v1' AS stat_code, 
+           'stock-in' AS "group", ROUND(SUM(COALESCE(mt.TalFQty,0)), 2) AS val1, ROUND(SUM(COALESCE(mt.TalFQty,0)), 2) - COALESCE(r.val1,0) AS val2, 
+           COALESCE(ROUND((ROUND(SUM(COALESCE(mt.TalFQty,0)), 2) - COALESCE(r.val1,0))/COALESCE(r.val1,0), 2), 0)*100 AS val3 
+    FROM Trans_main_table mt 
+    JOIN Trans_main_table mt2 ON mt.FBillNo = mt2.FBillNo 
+    RIGHT JOIN lh_dw.data_statistics_results AS r ON r.data_val = CONCAT(mt.FRelateBrID,'-',mt.FDeptID) AND mt.FCancellation = '1' AND mt.FCorrent = '1' 
+            AND mt.FSaleStyle IN ('0','1','3') AND mt.FTranType IN ('SOR','SEL') AND mt2.FTranType = 'PUR' AND mt."Date" = DATE_SUB(_test_date, INTERVAL 1 DAY) 
+    RIGHT JOIN (SELECT CONCAT(b.setting_key,'-',s.setting_key) AS "key" FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') AS bs 
+            ON bs.key = r.data_val AND r.time_dims = 'D' AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48, '%Y-%m-%d') 
+            AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' AND r."group" = 'stock-in' 
+    GROUP BY bs.key;	
+
+    INSERT INTO lh_dw.data_statistics_results(time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, "group1", val1, val2, val3) 
+    SELECT 'D' AS time_dims, DATE_SUB(_test_date, INTERVAL 1 DAY) AS time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) AS begin_time, 
+           CAST(CAST(_test_date AS DATE) AS DATETIME) AS end_time, '分部-部门' AS data_dims, bs.key AS data_val, 'operate-daily-report-v1' AS stat_code, 
+           'gross-profit' AS "group1", ROUND(SUM(COALESCE(mt.TalFQty,0)), 2) AS val1, ROUND(SUM(COALESCE(mt.TalFQty,0)), 2) - COALESCE(r.val1,0) AS val2, 
+           COALESCE(ROUND((ROUND(SUM(COALESCE(mt.TalFQty,0)), 2) - COALESCE(r.val1,0))/COALESCE(r.val1,0), 2), 0)*100 AS val3 
+    FROM Trans_main_table mt 
+    JOIN Trans_main_table mt2 ON mt.FBillNo = mt2.FBillNo 
+    RIGHT JOIN lh_dw.data_statistics_results AS r ON r.data_val = CONCAT(mt.FRelateBrID,'-',mt.FDeptID) AND mt.FCancellation = '1' AND mt.FCorrent = '1' 
+            AND mt.FSaleStyle != '2' AND mt.FTranType IN ('SOR','SEL') AND mt2.FTranType = 'PUR' AND mt."Date" = DATE_SUB(_test_date, INTERVAL 1 DAY) 
+    RIGHT JOIN (SELECT CONCAT(b.setting_key,'-',s.setting_key) AS "key" FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') AS bs 
+            ON bs.key = r.data_val AND r.time_dims = 'D' AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48, '%Y-%m-%d') 
+            AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' AND r."group1" = 'gross-profit' 
+    GROUP BY bs.key;
+
+
+
+    INSERT INTO lh_dw.data_statistics_results(time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, "group1", "group2", val1, val2, val3) 
+    SELECT 'D' AS time_dims, DATE_SUB(_test_date, INTERVAL 1 DAY) AS time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) AS begin_time, 
+           CAST(CAST(_test_date AS DATE) AS DATETIME) AS end_time, '分部-部门' AS data_dims, bs.key AS data_val, 'operate-daily-report-v1' AS stat_code, 
+           'service-cost' AS "group1", 'transport-cost' AS "group2", ROUND(SUM(COALESCE(mt2.TalSecond,0)), 2) AS val1, 
+           ROUND(SUM(COALESCE(mt2.TalSecond,0)), 2) - COALESCE(r.val1,0) AS val2, 
+           COALESCE(ROUND((ROUND(SUM(COALESCE(mt2.TalSecond,0)), 2) - COALESCE(r.val1,0))/COALESCE(r.val1,0), 2), 0)*100 AS val3 
+    FROM Trans_main_table mt 
+    JOIN Trans_main_table mt2 ON mt.FBillNo = mt2.FBillNo 
+    RIGHT JOIN lh_dw.data_statistics_results AS r ON r.data_val = CONCAT(mt.FRelateBrID,'-',mt.FDeptID) AND mt.FCancellation = '1' 
+            AND mt.FCorrent = '1' AND mt.FSaleStyle != '2' AND mt.FTranType IN ('SOR','SEL') AND mt2.FTranType = 'PUR' 
+            AND mt."Date" = DATE_SUB(_test_date, INTERVAL 1 DAY) 
+    RIGHT JOIN (SELECT CONCAT(b.setting_key,'-',s.setting_key) AS "key" FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') AS bs 
+            ON bs.key = r.data_val AND r.time_dims = 'D' AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48, '%Y-%m-%d') 
+            AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' AND r."group1" = 'service-cost' AND r."group2" = 'transport-cost' 
+    GROUP BY bs.key;
+
+    INSERT INTO lh_dw.data_statistics_results(time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, "group1", "group2", val1, val2, val3) 
+    SELECT 'D' AS time_dims, DATE_SUB(_test_date, INTERVAL 1 DAY) AS time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) AS begin_time, 
+           CAST(CAST(_test_date AS DATE) AS DATETIME) AS end_time, '分部-部门' AS data_dims, bs.key AS data_val, 'operate-daily-report-v1' AS stat_code, 
+           'service-cost' AS "group1", 'sorting-cost' AS "group2", ROUND(SUM(CASE mt."FTranType"  WHEN  'SOR' THEN COALESCE(mt."TalFrist",0) ELSE 0 END), 2) AS val1, 
+           ROUND(SUM(CASE mt."FTranType"  WHEN  'SOR' THEN COALESCE(mt."TalFrist",0) ELSE 0 END), 2) - COALESCE(r.val1,0) AS val2, 
+           COALESCE(ROUND((ROUND(SUM(CASE mt."FTranType"  WHEN  'SOR' THEN COALESCE(mt."TalFrist",0) ELSE 0 END), 2) - COALESCE(r.val1,0))/COALESCE(r.val1,0), 2), 0)*100 AS val3 
+    FROM Trans_main_table mt 
+    JOIN Trans_main_table mt2 ON mt.FBillNo = mt2.FBillNo 
+    RIGHT JOIN lh_dw.data_statistics_results AS r ON r.data_val = CONCAT(mt.FRelateBrID,'-',mt.FDeptID) AND mt.FCancellation = '1' 
+            AND mt.FCorrent = '1' AND mt.FSaleStyle != '2' AND mt.FTranType = 'SOR' AND mt2.FTranType = 'PUR' 
+            AND mt.Date = DATE_SUB(_test_date, INTERVAL 1 DAY) 
+    RIGHT JOIN (SELECT CONCAT(b.setting_key,'-',s.setting_key) AS "key" FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') AS bs 
+            ON bs.key = r.data_val AND r.time_dims = 'D' AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48, '%Y-%m-%d') 
+            AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' AND r."group1" = 'service-cost' AND r."group2" = 'sorting-cost' 
+    GROUP BY bs.key;
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,"group1","group2",val1,val2,val3) 
+        SELECT 'D' as time_dims, DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, 
+               CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '分部-部门' as data_dims, bs.key as data_val , 'operate-daily-report-v1' as stat_code , 
+               'service-cost' as "group1", 'consumables-cost' as "group2",  round(SUM(COALESCE(mt."TalSecond",0)),2) as val1, 
+               round(SUM(COALESCE(mt."TalSecond",0)),2) - COALESCE(r.val1,0) as val2, 
+               COALESCE(round((round(SUM(COALESCE(mt."TalSecond",0)),2) - COALESCE(r.val1,0))/COALESCE(r.val1,0),2),0)*100 as val3 
+        FROM Trans_main_table mt 
+        JOIN Trans_main_table mt2 ON mt.FBillNo = mt2.FBillNo 
+        RIGHT JOIN lh_dw.data_statistics_results as r ON r.data_val = CONCAT(mt.FRelateBrID,'-',mt.FDeptID) AND mt.FCancellation = '1' 
+                AND mt.FCorrent = '1' AND mt.FSaleStyle != '2' AND mt.FTranType = 'SOR' AND mt2.FTranType = 'PUR' 
+                AND mt."Date" = DATE_SUB(_test_date,INTERVAL 1 DAY) 
+        RIGHT JOIN (SELECT CONCAT(b.setting_key,'-',s.setting_key) as "key" FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') as bs 
+                ON bs.key = r.data_val AND r.time_dims = 'D' AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48,'%Y-%m-%d') 
+                AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' AND r."group1" = 'service-cost' AND r."group2" = 'consumables-cost' 
+        GROUP BY bs.key;
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,"group1","group2",val1,val2,val3) 
+        SELECT 'D' as time_dims, DATE_SUB(CURRENT_DATE,INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, 
+               CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '分部-部门' as data_dims, bs.key as data_val , 'operate-daily-report-v1' as stat_code , 
+               'service-cost' as "group1", 'lw-disposal-cost' as "group2",  round(sum(COALESCE(at.FAmount,0) + COALESCE(ft.FFeeAmount,0)),2) as val1, 
+               round(sum(COALESCE(at.FAmount,0) + COALESCE(ft.FFeeAmount,0)),2) - COALESCE(r.val1,0) as val2, 
+               COALESCE(round((round(sum(COALESCE(at.FAmount,0) + COALESCE(ft.FFeeAmount,0)),2) - COALESCE(r.val1,0))/COALESCE(r.val1,0),2),0) as val3 
+        FROM Trans_main_table mt 
+        JOIN Trans_main_table mt2 ON mt.FBillNo = mt2.FBillNo 
+        LEFT JOIN Trans_fee_table ft ON mt2.FInterID = ft.FInterID AND mt2.FTranType = ft.FTranType AND ft.FFeeID = '低值废弃物处理费'  
+        LEFT JOIN Trans_assist_table at ON at.FInterID = mt.FInterID AND at.FTranType = mt.FTranType AND at.value_type = 'unvaluable'
+        RIGHT JOIN lh_dw.data_statistics_results as r ON r.data_val = CONCAT(mt.FRelateBrID,'-',mt.FDeptID) AND mt.FCancellation = '1' 
+                AND mt.FCorrent = '1' AND mt.FSaleStyle != '2' AND mt.FTranType = 'SOR' AND mt2.FTranType = 'PUR' 
+                AND mt.Date = DATE_SUB(_test_date,INTERVAL 1 DAY) 
+        RIGHT JOIN (SELECT CONCAT(b.setting_key,'-',s.setting_key) as "key" FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') as bs 
+                ON bs.key = r.data_val AND r.time_dims = 'D' AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48,'%Y-%m-%d') 
+                AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' AND r."group1" = 'service-cost' AND r."group2" = 'lw-disposal-cost' 
+        GROUP BY bs.key;
+
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,"group1",val1,val2,val3) 
+        SELECT 'D' as time_dims, DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, 
+               CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, 
+               CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, 
+               '分部-部门' as data_dims, bs.key as data_val , 'operate-daily-report-v1' as stat_code , 
+               'order-count' as "group1",
+               SUM(IF(DATE_FORMAT(mt."FDate", '%Y-%m-%d') = DATE_SUB(_test_date, INTERVAL 1 DAY) AND mt."FCorrent" = 1, 1, 0)) as val1,
+               SUM(IF(mt2."FCorrent" = 0, 1, 0)) as val2,
+               SUM(CASE DATE_FORMAT(mt2."FDate", '%Y-%m-%d') WHEN DATE_SUB(_test_date, INTERVAL 1 DAY) THEN 1 ELSE 0 END) as val3
+        FROM Trans_main_table mt 
+        RIGHT JOIN Trans_main_table mt2 ON mt."FBillNo" = mt2."FBillNo" 
+        RIGHT JOIN lh_dw.data_statistics_results as r ON r.data_val = CONCAT(mt."FRelateBrID", '-', mt."FDeptID") 
+                AND mt."FCancellation" = '1' AND mt."FSaleStyle" != '2' 
+                AND mt."FTranType" IN ('SOR', 'SEL')  AND  mt2."FTranType" = 'PUR' 
+        RIGHT JOIN (SELECT CONCAT(b."setting_key", '-', s."setting_key") as "key" 
+                    FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') as bs 
+                ON bs."key" = r.data_val AND r.time_dims = 'D' 
+                AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48, '%Y-%m-%d') 
+                AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' 
+                AND r."group1" = 'order-count'   
+        GROUP BY bs."key";
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,"group1",val1,val2) 
+        SELECT 'D' as time_dims, DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, 
+               CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, 
+               CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, 
+               '分部-部门' as data_dims, bs.key as data_val , 'operate-daily-report-v1' as stat_code , 
+               'customer-count' as "group1", 
+               COUNT(c."id") as val1,
+               SUM(IF(FROM_UNIXTIME(createtime, '%Y-%m-%d') = DATE_SUB(_test_date, INTERVAL 1 DAY), 1, 0)) as val2
+        FROM uct_waste_customer c
+        RIGHT JOIN lh_dw.data_statistics_results as r ON r.data_val = CONCAT(c."branch_id", '-', c."service_department") 
+                AND c."branch_id" IS NOT NULL AND c."service_department" IS NOT NULL AND c."state" = 'enabled'  
+        RIGHT JOIN (SELECT CONCAT(b."setting_key", '-', s."setting_key") as "key" 
+                    FROM uct_branch b JOIN uct_waste_settings s ON s."group" = 'service_department') as bs 
+                ON bs."key" = r.data_val AND r.time_dims = 'D' 
+                AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date)-60*60*48, '%Y-%m-%d') 
+                AND r.data_dims = '分部-部门' AND r.stat_code = 'operate-daily-report-v1' 
+                AND r."group1" = 'customer-count'   
+        GROUP BY bs."key";   
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,stat_code,group1,group2,val1,val2,val3,data_val) 
+        SELECT rows.time_dims,rows.time_val,rows.begin_time,rows.end_time,rows.data_dims,rows.stat_code,rows.group1,rows.group2,rows.val1,rows.val2,
+               CASE WHEN classname = rows.data_val THEN rank + 1 ELSE 1 END as rank,
+               classname as data_val
+        FROM (SELECT 'D' as time_dims , DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, 
+                     CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) as begin_time , 
+                     CAST(CAST(_test_date AS DATE) AS DATETIME) as end_time , 
+                     '分部-部门' as data_dims , 
+                     concat(a.branch_id,'-',if(ga.group_id = 32,1,2)) as data_val , 
+                     'operate-daily-report-v1' as stat_code , 
+                     'performance-profit-weight' as group1,  
+                     a.nickname as group2,
+                     round(SUM(CASE mt."FTranType"   
+                                WHEN 'SOR' THEN   COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt."TalThird",0)   
+                                              - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                WHEN 'SEL' THEN    COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                ELSE '0' 
+                             END),2) as val1, 
+                     round(sum(COALESCE(mt.TalFQty,0)),2) as val2
+              FROM Trans_main_table mt 
+              JOIN Trans_main_table mt2 ON  mt."FBillNo" = mt2."FBillNo"   
+                                       AND mt.FCancellation = '1' 
+                                       AND mt.FCorrent = '1' 
+                                       AND mt.FSaleStyle != '2' 
+                                       AND mt.FTranType IN ('SOR','SEL')  
+                                       AND mt2.FTranType = 'PUR' 
+                                       AND mt.Date = DATE_SUB(_test_date,INTERVAL 1 DAY)   
+              RIGHT JOIN uct_admin a ON cast(a.id as char ) = mt2.FEmpID 
+              JOIN uct_auth_group_access ga ON ga.uid = a.id AND ga.group_id IN (32,36) 
+              GROUP BY a.id 
+              ORDER BY concat(a.branch_id,'-',if(ga.group_id = 32,1,2)), round(sum(COALESCE(mt.TalFQty,0)),2) DESC 
+        ) as rows;
+        
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,stat_code,group1,group2,val1,val2,val3,val4,data_val) 
+        SELECT rows.time_dims,rows.time_val,rows.begin_time,rows.end_time,rows.data_dims,rows.stat_code,rows.group1,rows.group2,rows.val1,rows.val2,rows.val3,
+               CASE WHEN classname = rows.data_val THEN rank + 1 ELSE 1 END as rank,
+               classname as data_val
+        FROM (SELECT 'D' as time_dims , DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, 
+                     CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) as begin_time , 
+                     CAST(CAST(_test_date AS DATE) AS DATETIME) as end_time , 
+                     '分部-部门' as data_dims , 
+                     concat(a.branch_id,'-',if(ga.group_id = 32,1,2)) as data_val , 
+                     'operate-daily-report-v1' as stat_code , 
+                     'performance-evaluation' as group1, 
+                     a.nickname as group2 , 
+                     round(avg(COALESCE(pe.remove_level_star,0)),3) as val1, 
+                     round(avg(COALESCE(pe.remove_fast_star,0)),3) as val2, 
+                     round(avg(COALESCE(pe.service_attitude_star,0)),3) as val3  
+              FROM uct_waste_purchase_evaluate pe 
+              JOIN Trans_main_table mt ON pe.purchase_id = mt.FInterID 
+                                      AND mt.FCancellation = '1' 
+                                      AND mt.FSaleStyle != '2' 
+                                      AND mt.FTranType = 'PUR' 
+                                      AND FROM_UNIXTIME(pe.createtime,'%Y-%m-%d') = DATE_SUB(_test_date,INTERVAL 1 DAY) 
+              RIGHT JOIN uct_admin a ON cast(a.id as char ) = mt.FEmpID   
+              JOIN uct_auth_group_access ga ON ga.uid = a.id AND ga.group_id IN (32,36) 
+              GROUP BY a.id 
+              ORDER BY concat(a.branch_id,'-',if(ga.group_id = 32,1,2)),  COALESCE(pe.remove_level_star,0)+COALESCE(pe.remove_fast_star,0)+COALESCE(pe.service_attitude_star,0) DESC
+        ) as rows;
+
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,stat_code,group1,group2,val1,val2,data_val) 
+        SELECT rows.time_dims,rows.time_val,rows.begin_time,rows.end_time,rows.data_dims,rows.stat_code,rows.group1,rows.group2,rows.val1,
+               CASE WHEN classname = rows.data_val THEN rank + 1 ELSE 1 END,
+               rows.data_val
+        FROM (SELECT 'D' as time_dims , DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, 
+                     CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) as begin_time , 
+                     CAST(CAST(_test_date AS DATE) AS DATETIME) as end_time , 
+                     '分部-部门' as data_dims , 
+                     concat(a.branch_id,'-',if(ga.group_id = 32,1,2)) as data_val , 
+                     'operate-daily-report-v1' as stat_code , 
+                     'performance-loss' as group1,  
+                     a.nickname as group2 , 
+                     round(SUM(CASE mt."FTranType"   
+                                WHEN 'SOR' THEN   COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt."TalThird",0)   
+                                              - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                WHEN 'SEL' THEN    COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                ELSE '0' 
+                             END),2) as val1  
+              FROM Trans_main_table mt 
+              JOIN Trans_main_table mt2 ON  mt."FBillNo" = mt2."FBillNo"   
+                                       AND mt.FCancellation = '1' 
+                                       AND mt.FSaleStyle != '2' 
+                                       AND mt.FTranType IN ('SOR','SEL')  
+                                       AND mt2.FTranType = 'PUR' 
+                                       AND mt.Date = DATE_SUB(_test_date,INTERVAL 1 DAY)   
+              JOIN uct_admin a ON cast(a.id as char ) = mt2.FEmpID 
+              JOIN uct_auth_group_access ga ON ga.uid = a.id AND ga.group_id IN (32,36) 
+              GROUP BY a.id 
+              HAVING round(SUM(CASE mt."FTranType"   
+                                WHEN 'SOR' THEN   COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt."TalThird",0)   
+                                              - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                WHEN 'SEL' THEN    COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                ELSE '0' 
+                             END),2) < 0 
+              ORDER BY concat(a.branch_id,'-',if(ga.group_id = 32,1,2)),round(SUM(CASE mt."FTranType"   
+                                WHEN 'SOR' THEN   COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt."TalThird",0)   
+                                              - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                WHEN 'SEL' THEN    COALESCE(mt."TalFAmount",0) - COALESCE(mt."TalFrist",0) - COALESCE(mt."TalSecond",0) - COALESCE(mt2."TalFAmount",0) - COALESCE(mt2."TalFrist",0) - COALESCE(mt2."TalSecond",0) - COALESCE(mt2."TalThird",0) - COALESCE(mt2."TalForth",0)   
+                                ELSE '0' 
+                             END),2)
+        ) as rows;
+
+
+        -- 递增日期
+        _test_date := _test_date + INTERVAL '1 day';
+    END LOOP;
+
+    -- 提交事务
+    COMMIT;
+END;
+$$;
+
+
+
+
 
 
 
@@ -5085,4 +5356,7605 @@ $$;
 
 
 
+
+CREATE OR REPLACE PROCEDURE uctoo_lvhuan.lh_dw_month_report_by_cust_ratio(p_day TEXT, p_cust_id INTEGER, INOUT o_rv INTEGER, INOUT o_err TEXT)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_new_day TEXT;
+BEGIN
+    -- 计算新日期
+    v_new_day := TO_CHAR((p_day::date + INTERVAL '1 MONTH'), 'YYYY-MM-DD');
+
+    IF v_new_day IS NULL THEN
+        o_rv := 400;
+        o_err := '获取月份失败.';
+        RETURN;
+    END IF;
+
+    -- 以下是一个示例事务; 您需要在此处添加更多逻辑
+    BEGIN
+        -- 添加您的事务相关代码
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            ROLLBACK;
+            o_rv := SQLSTATE::INTEGER;
+            o_err := '月报表数据生成失败.';
+    END;
+
+    -- 其他需要执行的代码...
+
+EXCEPTION
+    WHEN OTHERS THEN
+        o_rv := SQLSTATE::INTEGER;
+        o_err := '过程执行失败.';
+END;
+$$;
+
+
+
+
+
+
+
+
+-- 删除名为 "lh_dw_month_report_by_cust" 的存储过程
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."lh_dw_month_report_by_cust_mysql";
+
+-- 创建名为 "lh_dw_month_report_by_cust" 的存储过程
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."lh_dw_month_report_by_cust_mysql"(
+    IN "p_day" VARCHAR(50),
+    IN "p_cust_id" INTEGER,
+    INOUT "io_rv" INTEGER,
+    INOUT "io_err" VARCHAR(200)
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    "v_new_day" VARCHAR(50);
+BEGIN
+    -- 初始化 io_rv
+    "io_rv" := 0;
+
+    -- 获取下一个月的日期
+    SELECT TO_CHAR(DATE_TRUNC('MONTH', "p_day"::DATE) + INTERVAL '1 MONTH', 'YYYY-MM-DD') INTO "v_new_day";
+
+    -- 如果获取的日期为空，则设置错误信息并返回
+    IF "v_new_day" IS NULL THEN
+        "io_rv" := 400;
+        "io_err" := '获取月份失败.';
+        RETURN;
+    END IF;
+
+    -- 开始事务
+    BEGIN
+
+set errno=1000;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.val1, det.val2, ((case when det.val2 = 0 then 0 else round((det.val1 - det.val2)/det.val2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code,  base.group1, COALESCE(sum(main.TalFAmount),0) as val1,
+                   COALESCE((select val1 from lh_dw.data_statistics_results  where time_dims = base.time_dims and data_dims = base.data_dims
+                   and time_val = base.time_val2 and group1 = base.group1 and data_val = cus.id),0) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'revenue' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR'
+                    ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+          GROUP BY cus.id 
+           ) as det;
+
+set errno=1001;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.val1, det.val2, ((case when det.val2 = 0 then 0 else round((det.val1 - det.val2)/det.val2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code,  base.group1, COALESCE(sum(main.TalFQty),0) as val1,
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims  and data_dims = base.data_dims
+                   and time_val = base.time_val2 and group1 = base.group1 and data_val = cus.id),0) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'weight' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR'
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+   and cus.id = p_cust_id
+          GROUP BY cus.id 
+           ) as det;
+ 
+ set errno=1002;
+ 
+ 
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((det.m1 - det.m2)/det.m2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+                   cus.id as data_val, base.stat_code, base.group1,
+                   COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as m1, 
+                   COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < (base.begin_time - 1) and FSupplyID = cus.id),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'cumulative-revenue' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR') as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+ and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+ 
+set errno=1003;
+ 
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((det.m1 - det.m2)/det.m2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+                   cus.id as data_val, base.stat_code, base.group1,
+                   COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as m1, 
+                   COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < (base.begin_time - 1) and FSupplyID = cus.id),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'cumulative-weight' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR') as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+ 
+set errno=1004; 
+ 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.total_w,0) as val1, 
+           COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims and time_val = base.time_val2  
+                    and group1 = base.group1 and data_val = cus.id),0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-structure' as group1,
+                    'recyclable-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,COALESCE(SUM(oldAssist.FQty),0) as total_w
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+               and oldMain.FSaleStyle in (0,1) 
+               and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldAssist.value_type = 'valuable'
+             group by oldMain.FSupplyID) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+  GROUP BY cus.id 
+having cus.id = p_cust_id;
+
+set errno=1005; 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.total_w,0) as val1, 
+           COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims and time_val = base.time_val2  
+                    and group1 = base.group1 and data_val = cus.id),0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-structure' as group1,
+                    'low-value-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,COALESCE(SUM(oldAssist.FQty),0) as total_w
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+               and oldMain.FSaleStyle in (0,1) 
+               and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldAssist.value_type = 'unvaluable'
+             group by oldMain.FSupplyID) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+  GROUP BY cus.id 
+having cus.id = p_cust_id;
+
+set errno=1006; 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.total_w,0) as val1, 
+           COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims and time_val = base.time_val2  
+                    and group1 = base.group1 and data_val = cus.id),0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-structure' as group1,
+                    'hazardous-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,COALESCE(SUM(oldAssist.FQty),0) as total_w
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+               and oldMain.FSaleStyle in (0,1) 
+               and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldAssist.value_type = 'dangerous'
+             group by oldMain.FSupplyID) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+  GROUP BY cus.id 
+having cus.id = p_cust_id;
+
+set errno=1007;
+
+
+
+update lh_dw.data_statistics_results as main,
+            (select A.id,A.data_val,A.val1,B.weight,(case when B.weight = 0 then 0 else round((A.val1/B.weight),4) end) as rate,
+                    B.time_val,B.time_dims,B.group1
+               from lh_dw.data_statistics_results as A
+          left join (select data_val,SUM(val1) as weight,base.time_val,base.time_dims,base.group1  
+                       from lh_dw.data_statistics_results as C,
+                            (select TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                    'M' as time_dims, 
+                                    'weight-by-waste-structure' as group1
+                            ) as base 
+                      where C.time_dims = base.time_dims 
+                        and C.time_val = base.time_val 
+                        and C.group1 = base.group1 
+                      group by C.data_val
+                    ) as B
+                 on A.data_val = B.data_val
+              where A.time_dims = B.time_dims 
+                and A.time_val = B.time_val 
+                and A.group1 = B.group1 
+              order by  A.data_val
+            ) as detail
+        set main.val3 = detail.rate * 100
+      where main.time_dims = detail.time_dims
+        and main.time_val = detail.time_val
+        and main.group1 = detail.group1
+        and main.id = detail.id;
+
+set errno=1011;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, txt1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code,  base.group1, COALESCE(main.txt1,'2019-01-01') as txt1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'first-service-time' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select FSupplyID,left((MIN(FDate)),10) as txt1 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > 1546272000
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+               and FCancellation = 1 
+               and FTranType = 'PUR'
+               group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1012;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code,  base.group1, 
+           COALESCE((select count(distinct FBillNo) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and 
+                UNIX_TIMESTAMP(FDate) > base.begin_time and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as val1 
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-times' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+               and FCancellation = 1 
+               and FTranType = 'PUR'
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+     GROUP BY cus.id
+ having cus.id = p_cust_id;
+
+set errno=1013;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.m1 as val1,det.m2 as val2,((case when det.m2 = 0 then 0 else round((det.m1 - det.m2)/det.m2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+                   cus.id as data_val, base.stat_code, base.group1,
+                   COALESCE((select count(distinct FBillNo) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as m1, 
+                   COALESCE((select count(distinct FBillNo) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < (base.begin_time - 1) and FSupplyID = cus.id),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'cumulative-service-times' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR') as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+
+set errno=1014;
+
+
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MIN(oldLog.Tallot-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1016;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(AVG(oldLog.Tallot-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1017;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MAX(oldLog.Tallot-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1018;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round((AVG(oldLog.Tallot-oldLog.Tcreate)+((MAX(oldLog.Tallot-oldLog.Tcreate)+
+                                             MIN(oldLog.Tallot-oldLog.Tcreate)+4*AVG(oldLog.Tallot-oldLog.Tcreate))/3))/3600,1) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1019;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)      
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MIN(oldLog.Tpurchase-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1020;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)      
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(AVG(oldLog.Tpurchase-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1021;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)      
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MAX(oldLog.Tpurchase-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1022;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round((AVG(oldLog.Tpurchase-oldLog.Tcreate)+((MAX(oldLog.Tpurchase-oldLog.Tcreate)+
+                                             MIN(oldLog.Tpurchase-oldLog.Tcreate)+4*AVG(oldLog.Tpurchase-oldLog.Tcreate))/3))/3600,1) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1023;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, txt1, val1, val2)  
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1,  
+           COALESCE(main.name,'无品名') as txt1, COALESCE(main.money,0) as val1, COALESCE(main.weight,0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'revenue-by-waste-cate' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, cate.name, sum(oldAssist.FAmount) as money, sum(oldAssist.FQty) as weight
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+         left join uct_waste_cate as cate
+                on oldAssist.FItemID = cate.id
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldAssist.value_type = 'valuable'
+             group by oldMain.FSupplyID, cate.name
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id, main.name;
+
+
+set errno=1024;
+
+  
+        UPDATE lh_dw.data_statistics_results as a
+        INNER JOIN (
+            SELECT main.id, main.data_val, main.val1,
+                   ROW_NUMBER() OVER (PARTITION BY main.data_val ORDER BY main.val1 DESC) AS urank
+            FROM (
+                SELECT
+                    lh_dw.data_statistics_results.id,
+                    lh_dw.data_statistics_results.data_val,
+                    lh_dw.data_statistics_results.val1
+                FROM
+                    lh_dw.data_statistics_results
+                WHERE
+                    lh_dw.data_statistics_results.group1 = 'revenue-by-waste-cate'
+                    AND lh_dw.data_statistics_results.time_val = TO_CHAR(LAST_DAY(DATE_SUB("v_new_day"::DATE, INTERVAL '1 MONTH')), 'YYYY-MM')
+                    AND lh_dw.data_statistics_results.data_dims = '客户'
+            ) AS main
+        ) b ON a.id = b.id
+        SET a.val3 = b.urank;
+
+set errno=1025;
+
+
+        UPDATE lh_dw.data_statistics_results as a
+        INNER JOIN (
+            SELECT main.id, main.data_val, main.val2,
+                   ROW_NUMBER() OVER (PARTITION BY main.data_val ORDER BY main.val2 DESC) AS urank
+            FROM (
+                SELECT
+                    lh_dw.data_statistics_results.id,
+                    lh_dw.data_statistics_results.data_val,
+                    lh_dw.data_statistics_results.val2
+                FROM
+                    lh_dw.data_statistics_results
+                WHERE
+                    lh_dw.data_statistics_results.group1 = 'revenue-by-waste-cate'
+                    AND lh_dw.data_statistics_results.time_val = TO_CHAR(LAST_DAY(DATE_SUB("v_new_day"::DATE, INTERVAL '1 MONTH')), 'YYYY-MM')
+                    AND lh_dw.data_statistics_results.data_dims = '客户'
+            ) AS main
+        ) b ON a.id = b.id
+        SET a.val4 = b.urank;
+
+
+
+
+set errno=1026;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2, val3) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, COALESCE(m1,0) as val1, COALESCE(m2,0) as val2, COALESCE(m3,0) as val3
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'purchase-weight' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,
+                   SUM(if(oldAssist.value_type in ('valuable','unvaluable'),oldAssist.FQty,0)) as m1,
+                   SUM(if(oldAssist.value_type = 'valuable',oldAssist.FQty,0)) as m2,
+                   SUM(if(oldAssist.value_type = 'unvaluable',oldAssist.FQty,0)) as m3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType 
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1 
+               and oldMain.FTranType = 'PUR'
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1027;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3, val4, val5)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, COALESCE(m1,0) as val1, COALESCE(m2,0) as val2, COALESCE(m3,0) as val3,
+           COALESCE(m4,0) as val4, COALESCE(m5,0) as val5
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'inventory-analysis' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,
+                   SUM(oldAssist.FAmount) as m1,
+                   SUM(if(oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'sorting',oldAssist.FAmount,0)) as m2,
+                   SUM(if(((oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'weighing') or (oldAssist.FTranType = 'SEL')),oldAssist.FAmount,0)) as m3,
+                   SUM(if(oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'sorting',oldAssist.FQty,0)) as m4,
+                   SUM(if(((oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'weighing') or (oldAssist.FTranType = 'SEL')),oldAssist.FQty,0)) as m5
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType 
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1028;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2, val3) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,  
+           ((select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' 
+                 and start_value <= det.val2 and end_value > det.val2) + 
+            (select (case when det.val3 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' 
+                 and start_value <= det.val3 and end_value > det.val3)
+           ) as val1, det.val2, det.val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE(round((select IFNULL(val4,0)  from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'inventory-analysis' and data_val = main.FSupplyID)/
+                                (select val1 from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'weight' and data_val = main.FSupplyID),3),0) as val2,
+                   COALESCE(round((select IFNULL(val2,0) from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'inventory-analysis' and data_val = main.FSupplyID)/
+                                (select val4 from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'inventory-analysis' and data_val = main.FSupplyID),3),0) as val3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'sorting-cost' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                            ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+ 
+set errno=1029;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2, val3) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           ((select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'first_order_time' 
+                and start_value <= det.val2 and end_value > det.val2) + 
+            (select (case when det.val3 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'month_output' 
+                and start_value <= det.val3 and end_value > det.val3)
+           ) as val1, det.val2, det.val3  
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE((round((UNIX_TIMESTAMP(v_new_day) - 
+                         (select UNIX_TIMESTAMP(txt1) as first from lh_dw.data_statistics_results where time_val = base.time_val 
+                             and group1 = 'first-service-time' and data_val = main.FSupplyID))/86400,3)),0) as val2,
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                             and data_val = main.FSupplyID),0) as val3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'trust-index' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+ 
+set errno=1030;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2)
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           (select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where main_code = 'service-effect' 
+               and start_value <= det.val2 and end_value > det.val2) as val1, det.val2 
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   round((select  COALESCE((SUM(G.sign_out_time-G.sign_in_time)/count(E.FCancellation)),0) as num 
+                            from Trans_main_table as E left join uct_waste_purchase as F on E.FBillNo = F.order_id 
+                       left join uct_purchase_sign_in_out as G on F.id = G.purchase_id where E.FCancellation = 1 and UNIX_TIMESTAMP(E.FDate) > base.begin_time 
+                             and UNIX_TIMESTAMP(E.FDate) < base.end_time and E.FTranType = 'PUR' and G.sign_in_time > 0 and G.sign_out_time > 0 and E.FSupplyID = main.FSupplyID
+                    ),2) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'service-effect' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+
+set errno=1031;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2)
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           (select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where main_code = 'load-factor' 
+               and start_value <= det.val2 and end_value > det.val2) as val1, det.val2 
+      from (select sec.time_dims, sec.time_val, sec.begin_time, sec.end_time, sec.data_dims, sec.data_val, sec.stat_code, sec.group1, sec.group2,
+                   (case when sec.m2 = 0 then 0 else round((sec.m1/sec.m2),2) end) as val2
+              from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                           COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                                          and data_val = main.FSupplyID),0) as m1,
+                           COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'service-times' 
+                                          and data_val = main.FSupplyID),0) as m2
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'customer-index' as group1,
+                                   'load-factor' as group2
+                           ) as base,
+                           uct_waste_customer as cus 
+                 left join (select * 
+                              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                                   ) as base,
+                                   Trans_main_table 
+                             where UNIX_TIMESTAMP(FDate) > base.begin_time
+                               and UNIX_TIMESTAMP(FDate) < base.end_time 
+                             group by FSupplyID
+                           ) as main
+                        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+                     GROUP BY cus.id 
+                   ) as sec
+           ) as det;
+ 
+set errno=1032;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2, val3)    
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           ((select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' 
+                and start_value <= det.val2 and end_value > det.val2) + 
+            (select (case when det.val3 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' 
+                and start_value <= det.val3 and end_value > det.val3)
+           ) as val1, det.val2, det.val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE(round((select IFNULL(val3,0)  from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'purchase-weight' and data_val = main.FSupplyID)/
+                                (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                                    and data_val = main.FSupplyID),3),0) as val2,
+                   COALESCE(round((select IFNULL(val1,0) from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'purchase-weight' and data_val = main.FSupplyID)/
+                                (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' 
+                                    and data_val = main.FSupplyID),3),0) as val3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'waste-structure' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+set errno=1033;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           (select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where main_code = 'industry-ranking' 
+               and start_value <= det.val2 and end_value >= det.val2) as val1, det.val2
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' 
+                              and group2 in ('sorting-cost','trust-index','service-effect','load-factor','waste-structure') and data_val = main.FSupplyID),0) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'industry-ranking' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id 
+           ) as det;
+set errno=1034;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' 
+                    and group2 in ('sorting-cost','trust-index','service-effect','load-factor','waste-structure','industry-ranking') 
+                    and data_val = main.FSupplyID),0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'customer-index' as group1,
+                   'the_overall_score' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1035;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, 0 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'weight-by-waste-class' as group1,
+                   'glass' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+               and FCancellation = 1 
+               and FTranType = 'PUR'
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id 
+ having cus.id = p_cust_id;
+
+set errno=1036;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+     select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+            base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.weight,0) as val1
+       from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-class' as group1,
+                    'metal' as group2
+            ) as base,
+            uct_waste_customer as cus 
+  left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                    ) as base,
+                    Trans_main_table as oldMain
+          left join Trans_assist_table as oldAssist
+                 on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+          left join uct_waste_cate as cate
+                 on oldAssist.FItemID = cate.id
+              where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                and oldMain.FCancellation = 1
+                and oldMain.FCorrent = 1  
+                and ((oldMain.FTranType = 'SOR') or (oldMain.FTranType = 'SEL' and oldMain.FSaleStyle = 1))
+                and cate.top_class = 'metal'
+                group by oldMain.FSupplyID
+            ) as main
+         on cus.id = main.FSupplyID  
+where cus.customer_type = 'up'
+      GROUP BY cus.id 
+having cus.id = p_cust_id;
+
+set errno=1037;
+
+
+ insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+      select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+             base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.weight,0) as val1
+        from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                     UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                     TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                     TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                     'M' as time_dims, 
+                     '客户' as data_dims,
+                     'customer-monthly-report' as stat_code,
+                     'weight-by-waste-class' as group1,
+                     'plastic' as group2
+             ) as base,
+             uct_waste_customer as cus 
+   left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+                from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                             UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                     ) as base,
+                     Trans_main_table as oldMain
+           left join Trans_assist_table as oldAssist
+                  on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+           left join uct_waste_cate as cate
+                  on oldAssist.FItemID = cate.id
+               where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                 and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                 and oldMain.FCancellation = 1
+                 and oldMain.FCorrent = 1  
+                 and ((oldMain.FTranType = 'SOR') or (oldMain.FTranType = 'SEL' and oldMain.FSaleStyle = 1))
+                 and cate.top_class = 'plastic'
+                 group by oldMain.FSupplyID
+             ) as main
+          on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+       GROUP BY cus.id 
+ having cus.id = p_cust_id;
+
+set errno=1038;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+       select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+              base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.weight,0) as val1
+         from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                      UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                      TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                      TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                      'M' as time_dims, 
+                      '客户' as data_dims,
+                      'customer-monthly-report' as stat_code,
+                      'weight-by-waste-class' as group1,
+                      'waste-paper' as group2
+              ) as base,
+              uct_waste_customer as cus 
+    left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+                 from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                              UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                      ) as base,
+                      Trans_main_table as oldMain
+            left join Trans_assist_table as oldAssist
+                   on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+            left join uct_waste_cate as cate
+                   on oldAssist.FItemID = cate.id
+                where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                  and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                  and oldMain.FCancellation = 1
+                  and oldMain.FCorrent = 1  
+                  and ((oldMain.FTranType = 'SOR') or (oldMain.FTranType = 'SEL' and oldMain.FSaleStyle = 1))
+                  and cate.top_class = 'waste-paper'
+                  group by oldMain.FSupplyID
+              ) as main
+           on cus.id = main.FSupplyID  
+where cus.customer_type = 'up'
+        GROUP BY cus.id 
+having cus.id = p_cust_id;
+
+set errno=1039;
+
+update lh_dw.data_statistics_results as main,
+           (select A.id,A.data_val,A.val1,B.weight,(case when B.weight = 0 then 0 else round((A.val1/B.weight),4) end) as rate,
+                   B.time_val,B.time_dims,B.group1
+              from lh_dw.data_statistics_results as A
+         left join (select data_val,SUM(val1) as weight,base.time_val,base.time_dims,base.group1  
+                      from lh_dw.data_statistics_results as C,
+                           (select TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   'weight-by-waste-class' as group1
+                           ) as base 
+                     where C.time_dims = base.time_dims 
+                       and C.time_val = base.time_val 
+                       and C.group1 = base.group1 
+                     group by C.data_val
+                   ) as B
+                on A.data_val = B.data_val
+             where A.time_dims = B.time_dims 
+               and A.time_val = B.time_val 
+               and A.group1 = B.group1 
+             order by  A.data_val
+           ) as detail
+       set main.val2 = detail.rate * 100
+     where main.time_dims = detail.time_dims
+       and main.time_val = detail.time_val
+       and main.group1 = detail.group1
+       and main.id = detail.id;
+
+set errno=1040;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, COALESCE(round((main.weight/1000)*1,1),0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'green-coin' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > 1546272000
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FCorrent = 1  
+               and oldMain.FSaleStyle in (0,1)
+               and (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')  
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+ 
+set errno=1041;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,  
+           (round((det.m1/1000)*4.2,3)) as val1, ((case when det.m2 = 0 then 0 else (round((det.m1 - det.m2)/det.m2,3)) end) *100) as val2
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, 
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and time_dims = base.time_dims
+                                  and group1 = 'weight-by-waste-structure' and group2 = 'low-value-waste' and data_val = main.FSupplyID),0) as m1,
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and time_dims = base.time_dims
+                                  and group1 = 'weight-by-waste-structure' and group2 = 'low-value-waste' and data_val = main.FSupplyID),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'rdf-value' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                            ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR'
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+             GROUP BY cus.id
+           ) as det;
+ 
+set errno=1042;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-structure' 
+                             and group2 = 'low-value-waste' and data_val = main.FSupplyID),0)/1000),3)*0 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'low-value-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1043;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'glass' and data_val = main.FSupplyID),0)/1000),3)*0 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'glass' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1044;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'metal' and data_val = main.FSupplyID),0)/1000),3)*4.77 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'metal' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1045;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'plastic' and data_val = main.FSupplyID),0)/1000),3)*2.37 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'plastic' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1046;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'waste-paper' and data_val = main.FSupplyID),0)/1000),3)*2.51 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'waste-paper' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1047;
+
+
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1,  0 as val1, 0 as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'certified-emission-reduction' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1048;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, COALESCE(main.money,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'lw-disposal-cost' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, SUM(oldAssist.FAmount) as money
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FCorrent = 1  
+               and oldMain.FSaleStyle in (0,1)
+               and (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')  
+               and oldAssist.value_type = 'unvaluable'
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id 
+ having cus.id = p_cust_id;
+ 
+set errno=1049;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'disposal-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'disposal-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'PUR' then oldMain.TalThird else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+ set errno=1050;
+ 
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'transport-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'transport-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'PUR' then oldMain.TalSecond else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1052;
+
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'consumables-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'consumables-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'SOR' then oldMain.TalSecond else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+ 
+set errno=1054;
+
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'sorting-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'sorting-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'SOR' then oldMain.TalThird else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID 
+ where cus.customer_type = 'up' 
+   and cus.id = p_cust_id
+     GROUP BY cus.id;
+
+set errno=1057;
+
+
+
+
+
+        COMMIT;
+
+        -- 设置成功的消息
+        IF "errno" = 1057 THEN
+            "io_rv" := 200;
+            "io_err" := '月报表数据生成成功.';
+        END IF;
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- 如果出现异常，回滚事务
+            ROLLBACK;
+
+            -- 获取异常的消息
+            "io_err" := SQLERRM;
+    END;
+END;
+$$;
+
+
+-- 删除名为 "lh_dw_month_report_by_cust" 的存储过程
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."lh_dw_month_report_by_cust"(VARCHAR(50), INT, INOUT INTEGER, INOUT VARCHAR(200));
+
+-- 创建名为 "lh_dw_month_report_by_cust" 的存储过程
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."lh_dw_month_report_by_cust"(IN "p_day" VARCHAR(50), IN "p_cust_id" INT, INOUT io_rv INTEGER, INOUT io_err VARCHAR(200))
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_new_day VARCHAR(50);
+BEGIN
+    -- 初始化 io_rv
+    io_rv := 0;
+
+    -- 获取下一个月的日期
+    SELECT TO_CHAR(DATE_TRUNC('MONTH', p_day::date) + INTERVAL '1 MONTH', 'YYYY-MM-DD') INTO v_new_day;
+
+    -- 如果获取的日期为空，则设置错误信息并返回
+    IF v_new_day IS NULL THEN
+        io_rv := 400;
+        io_err := '获取月份失败.';
+        RETURN;
+    END IF;
+
+    -- 开始事务
+    BEGIN
+
+set errno=1000;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+select base.time_dims, base.time_val, 
+       FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+       base.data_dims, main.FSupplyID as data_val, 
+       base.stat_code,  base.group1, null as group2, null as txt1,
+       sum(main.TalFAmount) as val1
+  from Trans_main_table as main,
+       (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+               UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+               TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+               'M' as time_dims, 
+               '客户' as data_dims,
+               'customer-monthly-report' as stat_code,
+               'revenue' as group1
+       ) as base
+ where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+   and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+   and main.FCancellation = 1 
+   and main.FTranType = 'PUR'
+ and main.FSupplyID = p_cust_id 
+GROUP BY main.FSupplyID;
+
+set errno=1001;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+  select base.time_dims, base.time_val, 
+         FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+         base.data_dims, main.FSupplyID as data_val, 
+         base.stat_code,  base.group1, null as group2, null as txt1,
+         sum(main.TalFQty) as val1
+    from Trans_main_table as main,
+         (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                 'M' as time_dims, 
+                 '客户' as data_dims,
+                 'customer-monthly-report' as stat_code,
+                 'weight' as group1
+         ) as base
+   where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+     and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+     and main.FCancellation = 1 
+     and main.FTranType = 'PUR' 
+ and main.FSupplyID = p_cust_id
+ GROUP BY main.FSupplyID;
+ 
+ set errno=1002;
+ 
+ 
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3) 
+          select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+               det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((m1 - m2)/m2,4) end) * 100) as val3
+          from (select A.time_dims, A.time_val,FROM_UNIXTIME(A.begin_time) as begin_time, FROM_UNIXTIME(A.end_time) as end_time, A.data_dims, A.data_val, A.stat_code, A.group1,
+                         COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < A.end_time and FSupplyID = A.data_val),0) as m1, 
+                         COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < (A.begin_time - 1) and FSupplyID = A.data_val),0) as m2 
+                    from (select base.time_dims, base.time_val, base.time_val2,base.begin_time, base.end_time,base.data_dims, main.FSupplyID as data_val, 
+                                   base.stat_code,  base.group1
+                              from Trans_main_table as main,
+                                   (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                        UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                        'M' as time_dims, 
+                                        '客户' as data_dims,
+                                        'customer-monthly-report' as stat_code,
+                                        'cumulative-revenue' as group1
+                                   ) as base
+                         where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                              and main.FCancellation = 1 
+                              and main.FTranType = 'PUR' 
+and main.FSupplyID = p_cust_id
+                         GROUP BY main.FSupplyID
+                         ) as A
+               ) as det;
+ 
+set errno=1003;
+ 
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3) 
+          select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+                 det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((m1 - m2)/m2,4) end) * 100) as val3
+            from (select A.time_dims, A.time_val,FROM_UNIXTIME(A.begin_time) as begin_time, FROM_UNIXTIME(A.end_time) as end_time, A.data_dims, A.data_val, A.stat_code, A.group1,
+                         COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < A.end_time and FSupplyID = A.data_val),0) as m1, 
+                         COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < (A.begin_time - 1) and FSupplyID = A.data_val),0) as m2 
+                    from (select base.time_dims, base.time_val, base.time_val2,base.begin_time, base.end_time,base.data_dims, main.FSupplyID as data_val, 
+                                   base.stat_code,  base.group1
+                              from Trans_main_table as main,
+                                   (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                        UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                        'M' as time_dims, 
+                                        '客户' as data_dims,
+                                        'customer-monthly-report' as stat_code,
+                                        'cumulative-weight' as group1
+                                   ) as base
+                         where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                              and main.FCancellation = 1 
+                              and main.FTranType = 'PUR' 
+and main.FSupplyID = p_cust_id
+                         GROUP BY main.FSupplyID
+                         ) as A
+                 ) as det;
+ 
+set errno=1004; 
+ 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, 
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1, base.group2,
+                    COALESCE((select SUM(oldAssist.FQty) 
+                              from Trans_main_table as oldMain
+                         left join Trans_assist_table as oldAssist
+                              on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                         where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+                              and oldMain.FCancellation = 1 
+                              and oldMain.FCorrent = 1
+                              and oldMain.FSaleStyle in (0,1) 
+                              and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                              and oldAssist.value_type = 'valuable'
+                              and oldMain.FSupplyID = main.FSupplyID),0) as val1
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-structure' as group1,
+                         'recyclable-waste' as group2
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+ and main.FSupplyID = p_cust_id
+          GROUP BY main.FSupplyID;
+
+set errno=1005; 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, 
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1, base.group2,
+                    COALESCE((select SUM(oldAssist.FQty) 
+                              from Trans_main_table as oldMain
+                         left join Trans_assist_table as oldAssist
+                              on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                         where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+                              and oldMain.FCancellation = 1 
+                              and oldMain.FCorrent = 1
+                              and oldMain.FSaleStyle in (0,1) 
+                              and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                              and oldAssist.value_type = 'unvaluable'
+                              and oldMain.FSupplyID = main.FSupplyID),0) as val1
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-structure' as group1,
+                         'low-value-waste' as group2
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+ and main.FSupplyID = p_cust_id
+          GROUP BY main.FSupplyID;
+
+set errno=1006; 
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, 
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1, base.group2,
+                    COALESCE((select SUM(oldAssist.FQty) 
+                              from Trans_main_table as oldMain
+                         left join Trans_assist_table as oldAssist
+                              on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                         where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+                              and oldMain.FCancellation = 1 
+                              and oldMain.FCorrent = 1
+                              and oldMain.FSaleStyle in (0,1) 
+                              and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                              and oldAssist.value_type = 'dangerous'
+                              and oldMain.FSupplyID = main.FSupplyID),0) as val1
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-structure' as group1,
+                         'hazardous-waste' as group2
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+ and main.FSupplyID = p_cust_id
+          GROUP BY main.FSupplyID;
+
+set errno=1007;
+
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select main.time_dims, main.time_val,FROM_UNIXTIME(main.begin_time) as begin_time, FROM_UNIXTIME(main.end_time) as end_time,
+           main.data_dims,main.data_val,main.stat_code,main.group1, main.group2, left((MIN(det.FDate)),10) as txt1, main.val1  
+      from (select base.time_dims, base.time_val,base.begin_time, base.end_time,
+                   base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, null as group2,  null as val1  
+              from Trans_main_table as A,
+                   (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'first-service-time' as group1
+                   ) as base
+             where A.FCancellation = 1 
+               and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(A.FDate) < base.end_time
+               and A.FTranType = 'PUR' 
+ and A.FSupplyID = p_cust_id
+             group by A.FSupplyID
+           ) as main
+ left join Trans_main_table as det
+        on main.data_val = det.FSupplyID
+       and UNIX_TIMESTAMP(det.FDate) < main.end_time
+       and UNIX_TIMESTAMP(det.FDate) > 1546272000
+       and det.FCancellation = 1
+       and det.FTranType = 'PUR'
+ and det.FSupplyID = p_cust_id 
+       group by det.FSupplyID;
+ 
+set errno=1012;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, null as group2, null as txt1, count(distinct A.FBillNo) as val1,
+           (select COALESCE(SUM(Y.train_number),0) as num from Trans_main_table as X left join uct_waste_purchase as Y on X.FBillNo = Y.order_id 
+                     where X.FCancellation = 1  and X.FTranType = 'PUR' and UNIX_TIMESTAMP(X.FDate) > base.begin_time 
+                    and UNIX_TIMESTAMP(X.FDate) < base.end_time  and X.FSupplyID = A.FSupplyID) as val2  
+      from Trans_main_table as A,
+           (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-times' as group1
+           ) as base
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR'
+ and A.FSupplyID = p_cust_id 
+  group by A.FSupplyID;
+
+set errno=1013;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+     select main.time_dims, main.time_val,FROM_UNIXTIME(main.begin_time) as begin_time, FROM_UNIXTIME(main.end_time) as end_time,
+            main.data_dims,main.data_val,main.stat_code,main.group1, main.group2, main.txt1, 
+            COALESCE((select count(distinct det.FBillNo)
+                      from Trans_main_table as det
+                     where UNIX_TIMESTAMP(det.FDate) < main.end_time
+                       and UNIX_TIMESTAMP(det.FDate) > 1546272000
+                       and det.FCancellation = 1 
+                       and det.FTranType = 'PUR' 
+                       and det.FSupplyID = main.data_val
+                    ),0) as val1 
+       from (select base.time_dims, base.time_val,base.begin_time, base.end_time,
+                    base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, null as group2,  null as txt1  
+               from Trans_main_table as A,
+                    (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'cumulative-service-times' as group1
+                    ) as base
+              where A.FCancellation = 1 
+                and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+                and UNIX_TIMESTAMP(A.FDate) < base.end_time
+                and A.FTranType = 'PUR' 
+and A.FSupplyID = p_cust_id
+            group by A.FSupplyID
+            ) as main;
+
+set errno=1014;
+
+
+update 
+          lh_dw.data_statistics_results as main,
+                         (select A.time_dims,A.time_val,A.group1,A.data_val,(case when A.m1 = 0 then 0 else round((A.val1 - A.m1)/A.m1,3) end) as val2, (A.val1 - A.m1) as val3
+                            from (select main.val1, main.time_dims, main.data_val ,main.time_val,  base.time_val2, main.group1, 
+                                         COALESCE((select val1 
+                                                   from lh_dw.data_statistics_results 
+                                                   where time_dims = base.time_dims 
+                                                   and time_val = base.time_val2
+                                                   and group1 = base.group1
+                                                   and data_val = main.data_val),0) as m1
+                                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                              UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                              TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                              TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                              'M' as time_dims, 
+                                              '客户' as data_dims,
+                                              'customer-monthly-report' as stat_code,
+                                              'cumulative-service-times' as group1
+                                         ) as base,
+                                         lh_dw.data_statistics_results as main
+                                   where main.time_dims = base.time_dims 
+                                     and main.time_val = base.time_val
+                                     and main.group1 = base.group1) as A
+                         ) as detail
+     set main.val2 = detail.val2 * 100,
+         main.val3 = detail.val3
+   where main.time_val = detail.time_val
+     and main.time_dims= detail.time_dims
+     and main.group1 = detail.group1 
+     and main.data_val = detail.data_val
+ and main.data_val = p_cust_id;
+ 
+set errno=1015; 
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MIN(B.Tallot-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1016;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(AVG(B.Tallot-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1017;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MAX(B.Tallot-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1018;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round((AVG(B.Tallot-B.Tcreate)+((MAX(B.Tallot-B.Tcreate)+MIN(B.Tallot-B.Tcreate)+4*AVG(B.Tallot-B.Tcreate))/3))/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1019;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MIN(B.Tpurchase-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1020;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(AVG(B.Tpurchase-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1021;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MAX(B.Tpurchase-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1022;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round((AVG(B.Tpurchase-B.Tcreate)+((MAX(B.Tpurchase-B.Tcreate)+MIN(B.Tpurchase-B.Tcreate)+4*AVG(B.Tpurchase-B.Tcreate))/3))/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+ and A.FSupplyID = p_cust_id
+  group by A.FSupplyID;
+
+set errno=1023;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, txt1, val1, val2) 
+    select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time,FROM_UNIXTIME(base.end_time) as end_time,base.data_dims,
+           main.FSupplyID as data_val,base.stat_code,base.group1,cat.name,sum(det.FAmount) as money,sum(det.FQty) as weight
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'revenue-by-waste-cate' as group1
+           ) as base,
+           Trans_main_table as main
+ left join Trans_assist_table as det
+        on main.FInterID = det.FinterID and main.FTranType = det.FTranType
+ left join uct_waste_cate as cat
+        on det.FItemID = cat.id
+     where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+       and main.FCancellation = 1 
+       and main.FTranType = 'PUR' 
+       and det.value_type = 'valuable'
+ and main.FSupplyID = p_cust_id
+     GROUP BY main.FSupplyID,det.FItemID;
+ 
+
+        set errno = 1024;
+
+        -- 更新数据
+        UPDATE lh_dw.data_statistics_results as a
+        INNER JOIN (
+            SELECT main.id, main.data_val, main.val1,
+                CASE
+                    WHEN curGroup = main.data_val THEN row + 1
+                    WHEN curGroup <> main.data_val THEN 1
+                END urank
+            FROM (
+                SELECT 0 AS curGroup, 0 AS preAge, 0 AS row,
+                       'revenue-by-waste-cate' as group1,
+                       TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                       '客户' as data_dims
+                ) as base,
+                lh_dw.data_statistics_results as main
+            WHERE main.group1 = base.group1
+              AND main.time_val = base.time_val
+              AND main.data_dims = base.data_dims
+              AND main.data_val = p_cust_id
+            ORDER BY main.data_val ASC, main.val1 DESC
+        ) b 
+        ON a.id = b.id
+        SET a.val3 = b.urank;
+
+        set errno = 1025;
+
+        -- 更新数据
+        UPDATE lh_dw.data_statistics_results as a
+        INNER JOIN (
+            SELECT main.id, main.data_val, main.val2,
+                CASE
+                    WHEN curGroup = main.data_val THEN row + 1
+                    WHEN curGroup <> main.data_val THEN 1
+                END urank
+            FROM (
+                SELECT 0 AS curGroup, 0 AS preAge, 0 AS row,
+                       'revenue-by-waste-cate' as group1,
+                       TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                       '客户' as data_dims
+                ) as base,
+                lh_dw.data_statistics_results as main
+            WHERE main.group1 = base.group1
+              AND main.time_val = base.time_val
+              AND main.data_dims = base.data_dims
+              AND main.data_val = p_cust_id
+            ORDER BY main.data_val ASC, main.val2 DESC
+        ) b 
+        ON a.id = b.id
+        SET a.val4 = b.urank;
+
+
+
+set errno=1026;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2, val3) 
+     select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+            base.data_dims,main.FSupplyID as data_val, base.stat_code, base.group1, 
+            SUM(if(assist.value_type in ('valuable','unvaluable'),assist.FQty,0)) as val1,
+            SUM(if(assist.value_type = 'valuable',assist.FQty,0)) as val2,
+            SUM(if(assist.value_type = 'unvaluable',assist.FQty,0)) as val3
+       from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'purchase-weight' as group1
+            ) as base,
+            Trans_main_table as main
+     left join Trans_assist_table as assist
+         on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+      where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+        and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+        and main.FTranType = 'PUR'
+        and main.FCancellation = 1 
+and main.FSupplyID = p_cust_id
+      group by main.FSupplyID;
+
+set errno=1027;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3, val4, val5) 
+     select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+               base.data_dims,main.FSupplyID as data_val, base.stat_code, base.group1,   
+               SUM(assist.FAmount) as val1,
+               SUM(if(assist.FTranType = 'SOR' and assist.disposal_way = 'sorting',assist.FAmount,0)) as val2,
+               SUM(if(((assist.FTranType = 'SOR' and assist.disposal_way = 'weighing') or (assist.FTranType = 'SEL')),assist.FAmount,0)) as val3,
+               SUM(if(assist.FTranType = 'SOR' and assist.disposal_way = 'sorting',assist.FQty,0)) as val4,
+               SUM(if(((assist.FTranType = 'SOR' and assist.disposal_way = 'weighing') or (assist.FTranType = 'SEL')),assist.FQty,0)) as val5
+       from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'inventory-analysis' as group1
+               ) as base,
+               Trans_main_table as main
+   left join Trans_assist_table as assist
+          on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+       where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+         and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+         and main.FCancellation = 1
+         and main.FCorrent = 1  
+ and main.FSupplyID = p_cust_id
+     group by main.FSupplyID;
+ 
+set errno=1028;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2, val3) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                 ((select output_value from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' and start_value <= A.val2 and end_value > A.val2) + 
+                  (select output_value from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' and start_value <= A.val3 and end_value > A.val3)
+                 ) as val1,A.val2,A.val3
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         COALESCE(round((select IFNULL(val4,0)  from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'inventory-analysis' and data_val = main.data_val)/
+                                      (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' and data_val = main.data_val),3),0) as val2,
+                         COALESCE(round((select IFNULL(val2,0) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'inventory-analysis' and data_val = main.data_val)/
+                                      (select val4 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'inventory-analysis' and data_val = main.data_val),3),0) as val3
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                 'M' as time_dims, 
+                                 '客户' as data_dims,
+                                 'customer-monthly-report' as stat_code,
+                                 'customer-index' as group1,
+                                 'sorting-cost' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                   where main.time_val = base.time_val
+                     and main.stat_code = 'customer-monthly-report'
+                     and main.group1 = 'weight'
+ and main.data_val = p_cust_id
+ ) as A;
+ 
+set errno=1029;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2, val3) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                 ((select output_value from lh_dw.data_statistics_value_interval where vice_code = 'first_order_time' and start_value <= A.val2 and end_value > A.val2) + 
+                  (select output_value from lh_dw.data_statistics_value_interval where vice_code = 'month_output' and start_value <= A.val3 and end_value > A.val3)
+                 ) as val1,A.val2,A.val3
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         round((UNIX_TIMESTAMP(v_new_day) - (select UNIX_TIMESTAMP(txt1) as first from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'first-service-time' and data_val = main.data_val))/86400,3) as val2,
+                         (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' and data_val = main.data_val) as val3
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                 'M' as time_dims, 
+                                 '客户' as data_dims,
+                                 'customer-monthly-report' as stat_code,
+                                 'customer-index' as group1,
+                                 'trust-index' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                   where main.time_val = base.time_val
+                     and main.stat_code = 'customer-monthly-report'
+                     and main.group1 = 'weight'
+ and main.data_val = p_cust_id) as A;
+ 
+set errno=1030;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2)
+     select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+            (select output_value from lh_dw.data_statistics_value_interval where main_code = 'service-effect' and start_value <= A.val2 and end_value > A.val2) as val1,
+            A.val2
+       from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                    base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                    round((select  COALESCE((SUM(G.sign_out_time-G.sign_in_time)/count(E.FCancellation)),0) as num from Trans_main_table as E left join uct_waste_purchase as F on E.FBillNo = F.order_id 
+                                   left join uct_purchase_sign_in_out as G on F.id = G.purchase_id where E.FCancellation = 1 and UNIX_TIMESTAMP(E.FDate) > base.begin_time 
+                                   and UNIX_TIMESTAMP(E.FDate) < base.end_time and E.FTranType = 'PUR' and G.sign_in_time > 0 and G.sign_out_time > 0 and E.FSupplyID = main.data_val
+                    ),2) as val2
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'customer-index' as group1,
+                            'service-effect' as group2
+                    ) as base,
+                    lh_dw.data_statistics_results as main
+              where main.time_val = base.time_val
+                and main.stat_code = 'customer-monthly-report'
+                and main.group1 = 'weight'
+and main.data_val = p_cust_id
+) as A;
+
+set errno=1031;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2)
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                 (select output_value from lh_dw.data_statistics_value_interval where main_code = 'load-factor' and start_value <= A.val2 and end_value > A.val2) as val1,
+                 A.val2
+            from (select det.time_dims,det.time_val,det.begin_time, det.end_time,det.data_dims, det.data_val, det.stat_code, det.group1, 
+                         det.group2, det.txt1 as txt1,(case when det.m2 = 0 then 0 else round((m1/m2),2) end) as val2
+                    from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                                 base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                                 COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                                   and data_val = main.data_val),0) as m1,
+                                 COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'service-times' 
+                                   and data_val = main.data_val),0) as m2
+                            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                         'M' as time_dims, 
+                                         '客户' as data_dims,
+                                         'customer-monthly-report' as stat_code,
+                                         'customer-index' as group1,
+                                         'load-factor' as group2
+                                 ) as base,
+                                 lh_dw.data_statistics_results as main
+                           where main.time_val = base.time_val
+                             and main.stat_code = 'customer-monthly-report'
+                             and main.group1 = 'weight'
+ and main.data_val = p_cust_id
+                         ) as det
+                 ) as A;
+ 
+set errno=1032;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2, val3) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                    ((select output_value from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' and start_value <= A.val2 and end_value > A.val2) + 
+                    (select output_value from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' and start_value <= A.val3 and end_value > A.val3)
+                    ) as val1,A.val2,A.val3
+               from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         COALESCE(round((select IFNULL(val3,0)  from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' and data_val = main.data_val)/
+                                        (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' and data_val = main.data_val),3),0) as val2,
+                         COALESCE(round((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' and data_val = main.data_val)/
+                                        (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' and data_val = main.data_val),3),0) as val3
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'customer-index' as group1,
+                                   'waste-structure' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                    where main.time_val = base.time_val
+                         and main.stat_code = 'customer-monthly-report'
+                         and main.group1 = 'weight'
+ and main.data_val = p_cust_id) as A;
+set errno=1033;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                    (select output_value from lh_dw.data_statistics_value_interval where main_code = 'industry-ranking' and start_value <= A.val2 and end_value >= A.val2)  as val1,A.val2
+               from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' and data_val = main.data_val),0) as val2
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'customer-index' as group1,
+                                   'industry-ranking' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                    where main.time_val = base.time_val
+                         and main.stat_code = 'customer-monthly-report'
+                         and main.group1 = 'weight'
+ and main.data_val = p_cust_id) as A;
+set errno=1034;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                 COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' and data_val = main.data_val),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'customer-index' as group1,
+                         'the_overall_score' as group2
+                 ) as base,
+                 lh_dw.data_statistics_results as main
+           where main.time_val = base.time_val
+             and main.stat_code = 'customer-monthly-report'
+             and main.group1 = 'weight'
+ and main.data_val = p_cust_id;
+ 
+set errno=1035;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1, 0 as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'glass' as group2
+                 ) as base,
+                 Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+ and secondary.FSupplyID = p_cust_id
+        GROUP BY secondary.FSupplyID;
+
+set errno=1036;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1,
+                  COALESCE((select SUM(assist.FQty) from Trans_main_table as main
+                       left join Trans_assist_table as assist
+                              on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+                       left join uct_waste_cate as cate
+                              on assist.FItemID = cate.id
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                             and main.FCancellation = 1
+                             and main.FCorrent = 1  
+                             and ((main.FTranType = 'SOR') or (main.FTranType = 'SEL' and main.FSaleStyle = 1))
+                             and cate.top_class = 'metal'
+                             and main.FSupplyID = secondary.FSupplyID),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'metal' as group2
+                  ) as base,
+                    Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+ and secondary.FSupplyID = p_cust_id
+          GROUP BY secondary.FSupplyID;
+
+set errno=1037;
+
+
+ insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1,
+                  COALESCE((select SUM(assist.FQty) from Trans_main_table as main
+                       left join Trans_assist_table as assist
+                              on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+                       left join uct_waste_cate as cate
+                              on assist.FItemID = cate.id
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                             and main.FCancellation = 1
+                             and main.FCorrent = 1  
+                             and ((main.FTranType = 'SOR') or (main.FTranType = 'SEL' and main.FSaleStyle = 1))
+                             and cate.top_class = 'plastic'
+                             and main.FSupplyID = secondary.FSupplyID),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'plastic' as group2
+                 ) as base,
+                 Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+ and secondary.FSupplyID = p_cust_id
+        GROUP BY secondary.FSupplyID;
+
+set errno=1038;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1,
+                  COALESCE((select SUM(assist.FQty) from Trans_main_table as main
+                       left join Trans_assist_table as assist
+                              on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+                       left join uct_waste_cate as cate
+                              on assist.FItemID = cate.id
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                             and main.FCancellation = 1
+                             and main.FCorrent = 1  
+                             and ((main.FTranType = 'SOR') or (main.FTranType = 'SEL' and main.FSaleStyle = 1))
+                             and cate.top_class = 'waste-paper'
+                             and main.FSupplyID = secondary.FSupplyID),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'waste-paper' as group2
+                 ) as base,
+                 Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+ and secondary.FSupplyID = p_cust_id
+          GROUP BY secondary.FSupplyID;
+
+set errno=1039;
+
+update 
+          lh_dw.data_statistics_results as main,
+                              (select A.id,A.data_val,A.val1,B.weight,(case when B.weight = 0 then 0 else round((A.val1/B.weight),4) end) as rate,B.time_val,B.time_dims,B.group1
+                              from lh_dw.data_statistics_results as A
+                         left join (select data_val,SUM(val1) as weight,base.time_val,base.time_dims,base.group1  
+                                      from lh_dw.data_statistics_results as C,
+                                           (select TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                                   'M' as time_dims, 
+                                                   'weight-by-waste-class' as group1
+                                           ) as base 
+                                     where C.time_dims = base.time_dims 
+                                       and C.time_val = base.time_val 
+                                       and C.group1 = base.group1 
+                                  group by C.data_val
+                                   ) as B
+                              on A.data_val = B.data_val
+                         where A.time_dims = B.time_dims 
+                              and A.time_val = B.time_val 
+                              and A.group1 = B.group1
+  and A.data_val = p_cust_id
+                              order by  A.data_val
+                              ) as detail
+          set main.val2 = detail.rate * 100
+        where main.time_dims = detail.time_dims
+          and main.time_val = detail.time_val
+          and main.group1 = detail.group1
+          and main.id = detail.id
+and main.data_val = p_cust_id;
+
+set errno=1040;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1)  
+          select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+                 round((det.m1/1000)*1,1) as val1
+            from (select A.time_dims, A.time_val,FROM_UNIXTIME(A.begin_time) as begin_time, FROM_UNIXTIME(A.end_time) as end_time, 
+                         A.data_dims, A.data_val, A.stat_code, A.group1,
+                           COALESCE((select SUM(oldAssist.FQty) 
+                                     from Trans_main_table as oldMain 
+                                left join Trans_assist_table as oldAssist 
+                                       on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                                    where oldMain.FCancellation = 1 
+                                      and oldMain.FCorrent = 1
+                                      and oldMain.FSaleStyle in (0,1)
+                                      and (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL') 
+                                      and UNIX_TIMESTAMP(oldMain.FDate) > 1546272000 
+                                      and UNIX_TIMESTAMP(oldMain.FDate) < A.end_time 
+                                      and oldMain.FSupplyID = A.data_val),0) as m1
+                      from (select base.time_dims, base.time_val, base.time_val2,base.begin_time, base.end_time,base.data_dims, main.FSupplyID as data_val, 
+                                     base.stat_code,  base.group1
+                                from Trans_main_table as main,
+                                     (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'green-coin' as group1
+                                     ) as base
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                                and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                                and main.FCancellation = 1 
+                                and main.FTranType = 'PUR'
+  and main.FSupplyID = p_cust_id
+                           GROUP BY main.FSupplyID
+                           ) as A
+                 ) as det;
+ 
+ 
+set errno=1041;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1, main.val1,
+               (case when main.val3 = 0 then 0 else (round((main.val1 - main.val3)/val3,3)) end) as val2
+          from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1, (round((A.val1/1000)*4.2,3)) as val1, 
+                         COALESCE((select val1 
+                                   from lh_dw.data_statistics_results
+                                   where time_val = base.time_val2
+                                   and time_dims = base.time_dims
+                                   and group1 = base.group1
+                                   and data_val = A.data_val),0) as val3    
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'rdf-value' as group1
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                    where A.time_val = base.time_val
+                    and A.time_dims = base.time_dims
+                    and A.group1 = 'weight-by-waste-structure'
+                    and A.group2 = 'low-value-waste'
+and A.data_val = p_cust_id
+               ) as main;
+ 
+set errno=1042;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1, main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1, base.group2, (round((COALESCE(A.val1,0)/1000)*0,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'low-value-waste' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                   where A.time_val = base.time_val
+                     and A.time_dims = base.time_dims
+                     and A.group1 = 'weight-by-waste-structure'
+                     and A.group2 = 'low-value-waste'
+ and A.data_val = p_cust_id
+                 ) as main;
+
+set errno=1043;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1,base.group2, (round((COALESCE(A.val1,0)/1000)*0,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'glass' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                   where A.time_val = base.time_val
+                     and A.time_dims = base.time_dims
+                     and A.group1 = 'weight-by-waste-class'
+                     and A.group2 = 'glass'
+ and A.data_val = p_cust_id
+                 ) as main;
+ 
+set errno=1044;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1, base.group2,(round((COALESCE(A.val1,0)/1000)*4.77,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'metal' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                    where A.time_val = base.time_val
+                    and A.time_dims = base.time_dims
+                    and A.group1 = 'weight-by-waste-class'
+                    and A.group2 = 'metal'
+and A.data_val = p_cust_id
+                 ) as main;
+ 
+set errno=1045;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1,base.group2, (round((COALESCE(A.val1,0)/1000)*2.37,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'plastic' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                    where A.time_val = base.time_val
+                    and A.time_dims = base.time_dims
+                    and A.group1 = 'weight-by-waste-class'
+                    and A.group2 = 'plastic'
+and A.data_val = p_cust_id
+                 ) as main;
+ 
+set errno=1046;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1,base.group2, (round((COALESCE(A.val1,0)/1000)*2.51,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'waste-paper' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                   where A.time_val = base.time_val
+                     and A.time_dims = base.time_dims
+                     and A.group1 = 'weight-by-waste-class'
+                     and A.group2 = 'waste-paper'
+ and A.data_val = p_cust_id
+                 ) as main;
+
+set errno=1047;
+
+
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code,  base.group1, 0 as val1, 0 as val2
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'certified-emission-reduction' as group1
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+ and main.FSupplyID = p_cust_id
+          GROUP BY main.FSupplyID;
+
+set errno=1048;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1) 
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1,  
+                         COALESCE((select sum(assist.FAmount) 
+                                   from Trans_main_table as mainOld
+                              left join Trans_assist_table as assist
+                                     on mainOld.FInterID = assist.FinterID and mainOld.FTranType = assist.FTranType
+                                  where UNIX_TIMESTAMP(mainOld.FDate) > base.begin_time
+                                    and UNIX_TIMESTAMP(mainOld.FDate) < base.end_time
+                                    and assist.value_type = 'unvaluable'
+                                    and mainOld.FCancellation = 1 
+                                    and mainOld.FCorrent = 1
+                                    and mainOld.FSaleStyle in (0,1)
+                                    and (mainOld.FTranType = 'SOR' or mainOld.FTranType = 'SEL')
+                                    and mainOld.FSupplyID = main.FSupplyID),0) as val1    
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                 'M' as time_dims, 
+                                 '客户' as data_dims,
+                                 'customer-monthly-report' as stat_code,
+                                 'lw-disposal-cost' as group1
+                         ) as base,
+                         Trans_main_table as main
+                   where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                     and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                     and main.FCancellation = 1 
+                     and main.FTranType = 'PUR'
+ and main.FSupplyID = p_cust_id 
+                    GROUP BY main.FSupplyID 
+                 ) as main;
+ 
+set errno=1049;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+     select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+            B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val1) as val1
+       from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                    base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                    sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                    sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                    sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                    sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'service-cost' as group1,
+                            'disposal-cost' as group2
+                    ) as base,
+                    Trans_main_table as A
+              where A.FCancellation = 1
+                and A.FCorrent = 1
+                and A.FSaleStyle <> '2'
+and A.FSupplyID = p_cust_id
+           group by A.FBillNo
+             having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                and UNIX_TIMESTAMP(maxDate) < base.end_time
+            ) as B   
+   group by B.data_val;
+ 
+ set errno=1050;
+ 
+ 
+ update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'disposal-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+and res.data_val = p_cust_id
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val
+and main.data_val = p_cust_id;
+
+set errno=1051;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+     select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+            B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val2) as val1
+       from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                    base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                    sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                    sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                    sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                    sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'service-cost' as group1,
+                            'transport-cost' as group2
+                    ) as base,
+                    Trans_main_table as A
+              where A.FCancellation = 1
+                and A.FCorrent = 1
+                and A.FSaleStyle <> '2'
+and A.FSupplyID = p_cust_id
+           group by A.FBillNo
+             having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                and UNIX_TIMESTAMP(maxDate) < base.end_time
+            ) as B   
+   group by B.data_val;
+ 
+set errno=1052;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'transport-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+and res.data_val = p_cust_id
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val
+and main.data_val = p_cust_id;
+
+set errno=1053;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+     select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+            B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val3) as val1
+       from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                    base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                    sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                    sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                    sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                    sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'service-cost' as group1,
+                            'consumables-cost' as group2
+                    ) as base,
+                    Trans_main_table as A
+              where A.FCancellation = 1
+                and A.FCorrent = 1
+                and A.FSaleStyle <> '2'
+and A.FSupplyID = p_cust_id
+           group by A.FBillNo
+             having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                and UNIX_TIMESTAMP(maxDate) < base.end_time
+            ) as B   
+   group by B.data_val;
+ 
+set errno=1054;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'consumables-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+and res.data_val = p_cust_id
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val
+and main.data_val = p_cust_id;
+
+set errno=1055;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+           B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val4) as val1
+      from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                   base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                   sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                   sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                   sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                   sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'service-cost' as group1,
+                           'sorting-cost' as group2
+                   ) as base,
+                   Trans_main_table as A
+             where A.FCancellation = 1
+               and A.FCorrent = 1
+               and A.FSaleStyle <> '2'
+ and A.FSupplyID = p_cust_id
+          group by A.FBillNo
+            having UNIX_TIMESTAMP(maxDate) > base.begin_time
+               and UNIX_TIMESTAMP(maxDate) < base.end_time
+           ) as B   
+  group by B.data_val;
+
+set errno=1056;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'sorting-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+and res.data_val = p_cust_id
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val
+and main.data_val = p_cust_id;
+
+set errno=1057;
+
+
+
+        COMMIT;
+
+        -- 设置成功的消息
+        IF  errno = 1057 THEN
+            io_rv := 200;
+            io_err := '月报表数据生成成功.';
+        END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- 如果出现异常，回滚事务
+            ROLLBACK;
+
+            -- 获取异常的消息
+            io_err := SQLERRM;
+    END;
+END;
+$$;
+
+
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."lh_dw_month_report_mysql";
+
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."lh_dw_month_report_mysql"(
+    IN "p_day" VARCHAR(50),
+    INOUT "o_rv_err" VARCHAR(200)
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    errno INT;
+    v_new_day VARCHAR(50);
+    curGroup TEXT;
+    row INT;
+BEGIN
+    -- 初始化 o_rv_err
+    "o_rv_err" := NULL;
+
+    -- 处理异常
+    BEGIN
+        -- 主过程
+        SELECT TO_CHAR(DATE_ADD("p_day"::DATE, INTERVAL '1 MONTH'), 'YYYY-MM-DD') INTO v_new_day;
+
+        IF v_new_day IS NULL THEN
+            "o_rv_err" := '获取月份失败.';
+            RETURN;
+        END IF;
+
+        -- 初始化 curGroup 和 row
+        curGroup := '';
+        row := 0;
+
+        -- 开始事务
+        BEGIN
+		
+set errno=1000;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.val1, det.val2, ((case when det.val2 = 0 then 0 else round((det.val1 - det.val2)/det.val2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code,  base.group1, COALESCE(sum(main.TalFAmount),0) as val1,
+                   COALESCE((select val1 from lh_dw.data_statistics_results  where time_dims = base.time_dims and data_dims = base.data_dims
+                   and time_val = base.time_val2 and group1 = base.group1 and data_val = cus.id),0) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'revenue' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR'
+                    ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+          GROUP BY cus.id
+           ) as det;
+
+set errno=1001;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.val1, det.val2, ((case when det.val2 = 0 then 0 else round((det.val1 - det.val2)/det.val2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code,  base.group1, COALESCE(sum(main.TalFQty),0) as val1,
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims  and data_dims = base.data_dims
+                   and time_val = base.time_val2 and group1 = base.group1 and data_val = cus.id),0) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'weight' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR'
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+          GROUP BY cus.id
+           ) as det;
+ 
+ set errno=1002;
+ 
+ 
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((det.m1 - det.m2)/det.m2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+                   cus.id as data_val, base.stat_code, base.group1,
+                   COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as m1, 
+                   COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < (base.begin_time - 1) and FSupplyID = cus.id),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'cumulative-revenue' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR') as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+ 
+set errno=1003;
+ 
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((det.m1 - det.m2)/det.m2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+                   cus.id as data_val, base.stat_code, base.group1,
+                   COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as m1, 
+                   COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < (base.begin_time - 1) and FSupplyID = cus.id),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'cumulative-weight' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR') as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+ 
+set errno=1004; 
+ 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.total_w,0) as val1, 
+           COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims and time_val = base.time_val2  
+                    and group1 = base.group1 and data_val = cus.id),0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-structure' as group1,
+                    'recyclable-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,COALESCE(SUM(oldAssist.FQty),0) as total_w
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+               and oldMain.FSaleStyle in (0,1) 
+               and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldAssist.value_type = 'valuable'
+             group by oldMain.FSupplyID) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+  GROUP BY cus.id;
+
+set errno=1005; 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.total_w,0) as val1, 
+           COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims and time_val = base.time_val2  
+                    and group1 = base.group1 and data_val = cus.id),0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-structure' as group1,
+                    'low-value-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,COALESCE(SUM(oldAssist.FQty),0) as total_w
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+               and oldMain.FSaleStyle in (0,1) 
+               and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldAssist.value_type = 'unvaluable'
+             group by oldMain.FSupplyID) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+  GROUP BY cus.id;
+
+set errno=1006; 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.total_w,0) as val1, 
+           COALESCE((select val1 from lh_dw.data_statistics_results where time_dims = base.time_dims and time_val = base.time_val2  
+                    and group1 = base.group1 and data_val = cus.id),0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-structure' as group1,
+                    'hazardous-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,COALESCE(SUM(oldAssist.FQty),0) as total_w
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+               and oldMain.FSaleStyle in (0,1) 
+               and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldAssist.value_type = 'dangerous'
+             group by oldMain.FSupplyID) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up' 
+  GROUP BY cus.id;
+
+set errno=1007;
+
+
+
+update lh_dw.data_statistics_results as main,
+            (select A.id,A.data_val,A.val1,B.weight,(case when B.weight = 0 then 0 else round((A.val1/B.weight),4) end) as rate,
+                    B.time_val,B.time_dims,B.group1
+               from lh_dw.data_statistics_results as A
+          left join (select data_val,SUM(val1) as weight,base.time_val,base.time_dims,base.group1  
+                       from lh_dw.data_statistics_results as C,
+                            (select TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                    'M' as time_dims, 
+                                    'weight-by-waste-structure' as group1
+                            ) as base 
+                      where C.time_dims = base.time_dims 
+                        and C.time_val = base.time_val 
+                        and C.group1 = base.group1 
+                      group by C.data_val
+                    ) as B
+                 on A.data_val = B.data_val
+              where A.time_dims = B.time_dims 
+                and A.time_val = B.time_val 
+                and A.group1 = B.group1 
+              order by  A.data_val
+            ) as detail
+        set main.val3 = detail.rate * 100
+      where main.time_dims = detail.time_dims
+        and main.time_val = detail.time_val
+        and main.group1 = detail.group1
+        and main.id = detail.id;
+
+set errno=1011;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, txt1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code,  base.group1, COALESCE(main.txt1,'2019-01-01') as txt1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'first-service-time' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select FSupplyID,left((MIN(FDate)),10) as txt1 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > 1546272000
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+               and FCancellation = 1 
+               and FTranType = 'PUR'
+               group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1012;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code,  base.group1, 
+           COALESCE((select count(distinct FBillNo) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and 
+                UNIX_TIMESTAMP(FDate) > base.begin_time and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as val1 
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-times' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+               and FCancellation = 1 
+               and FTranType = 'PUR'
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1013;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+    select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+           det.m1 as val1,det.m2 as val2,((case when det.m2 = 0 then 0 else round((det.m1 - det.m2)/det.m2,4) end) * 100) as val3
+      from (select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+                   cus.id as data_val, base.stat_code, base.group1,
+                   COALESCE((select count(distinct FBillNo) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < base.end_time and FSupplyID = cus.id),0) as m1, 
+                   COALESCE((select count(distinct FBillNo) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                      and UNIX_TIMESTAMP(FDate) < (base.begin_time - 1) and FSupplyID = cus.id),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'cumulative-service-times' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR') as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+
+set errno=1014;
+
+
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MIN(oldLog.Tallot-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1016;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(AVG(oldLog.Tallot-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1017;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MAX(oldLog.Tallot-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1018;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round((AVG(oldLog.Tallot-oldLog.Tcreate)+((MAX(oldLog.Tallot-oldLog.Tcreate)+
+                                             MIN(oldLog.Tallot-oldLog.Tcreate)+4*AVG(oldLog.Tallot-oldLog.Tcreate))/3))/3600,1) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1019;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)      
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MIN(oldLog.Tpurchase-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1020;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)      
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(AVG(oldLog.Tpurchase-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1021;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)      
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round(MAX(oldLog.Tpurchase-oldLog.Tcreate)/3600,2) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1022;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, round((AVG(oldLog.Tpurchase-oldLog.Tcreate)+((MAX(oldLog.Tpurchase-oldLog.Tcreate)+
+                                             MIN(oldLog.Tpurchase-oldLog.Tcreate)+4*AVG(oldLog.Tpurchase-oldLog.Tcreate))/3))/3600,1) as val1
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_log_table as oldLog
+                on oldMain.FInterID = oldLog.FinterID and oldMain.FTranType = oldLog.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldLog.TallotOver = 1
+            group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1023;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, txt1, val1, val2)  
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1,  
+           COALESCE(main.name,'无品名') as txt1, COALESCE(main.money,0) as val1, COALESCE(main.weight,0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'revenue-by-waste-cate' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, cate.name, sum(oldAssist.FAmount) as money, sum(oldAssist.FQty) as weight
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+         left join uct_waste_cate as cate
+                on oldAssist.FItemID = cate.id
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FTranType = 'PUR'  
+               and oldAssist.value_type = 'valuable'
+             group by oldMain.FSupplyID, cate.name
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id, main.name;		
+		
+		
+set errno=1024;
+
+           UPDATE lh_dw.data_statistics_results AS a
+            SET a.val3 = b.urank
+            FROM (
+                SELECT main.id, main.data_val, main.val1,
+                       CASE WHEN main.data_val = curGroup THEN row + 1 ELSE 1 END AS urank
+                FROM (
+                    SELECT
+                        lh_dw.data_statistics_results.id,
+                        lh_dw.data_statistics_results.data_val,
+                        lh_dw.data_statistics_results.val1
+                    FROM
+                        lh_dw.data_statistics_results
+                    WHERE
+                        lh_dw.data_statistics_results.group1 = 'revenue-by-waste-cate'
+                        AND lh_dw.data_statistics_results.time_val = TO_CHAR(LAST_DAY(DATE_SUB(v_new_day::DATE, INTERVAL '1 MONTH')), 'YYYY-MM')
+                        AND lh_dw.data_statistics_results.data_dims = '客户'
+                ) AS main
+                ORDER BY main.data_val ASC, main.val1 DESC
+            ) b
+            WHERE a.id = b.id;
+			
+			
+set errno=1025;
+
+            UPDATE lh_dw.data_statistics_results AS a
+            SET a.val4 = b.urank
+            FROM (
+                SELECT main.id, main.data_val, main.val2,
+                       CASE WHEN main.data_val = curGroup THEN row + 1 ELSE 1 END AS urank
+                FROM (
+                    SELECT
+                        lh_dw.data_statistics_results.id,
+                        lh_dw.data_statistics_results.data_val,
+                        lh_dw.data_statistics_results.val2
+                    FROM
+                        lh_dw.data_statistics_results
+                    WHERE
+                        lh_dw.data_statistics_results.group1 = 'revenue-by-waste-cate'
+                        AND lh_dw.data_statistics_results.time_val = TO_CHAR(LAST_DAY(DATE_SUB(v_new_day::DATE, INTERVAL '1 MONTH')), 'YYYY-MM')
+                        AND lh_dw.data_statistics_results.data_dims = '客户'
+                ) AS main
+                ORDER BY main.data_val ASC, main.val2 DESC
+            ) b
+            WHERE a.id = b.id;
+			
+
+set errno=1026;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2, val3) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, COALESCE(m1,0) as val1, COALESCE(m2,0) as val2, COALESCE(m3,0) as val3
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'purchase-weight' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,
+                   SUM(if(oldAssist.value_type in ('valuable','unvaluable'),oldAssist.FQty,0)) as m1,
+                   SUM(if(oldAssist.value_type = 'valuable',oldAssist.FQty,0)) as m2,
+                   SUM(if(oldAssist.value_type = 'unvaluable',oldAssist.FQty,0)) as m3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType 
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1 
+               and oldMain.FTranType = 'PUR'
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1027;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3, val4, val5)
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+           cus.id as data_val, base.stat_code, base.group1, COALESCE(m1,0) as val1, COALESCE(m2,0) as val2, COALESCE(m3,0) as val3,
+           COALESCE(m4,0) as val4, COALESCE(m5,0) as val5
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'inventory-analysis' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID,
+                   SUM(oldAssist.FAmount) as m1,
+                   SUM(if(oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'sorting',oldAssist.FAmount,0)) as m2,
+                   SUM(if(((oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'weighing') or (oldAssist.FTranType = 'SEL')),oldAssist.FAmount,0)) as m3,
+                   SUM(if(oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'sorting',oldAssist.FQty,0)) as m4,
+                   SUM(if(((oldAssist.FTranType = 'SOR' and oldAssist.disposal_way = 'weighing') or (oldAssist.FTranType = 'SEL')),oldAssist.FQty,0)) as m5
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType 
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1 
+               and oldMain.FCorrent = 1
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1028;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2, val3) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,  
+           ((select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' 
+                 and start_value <= det.val2 and end_value > det.val2) + 
+            (select (case when det.val3 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' 
+                 and start_value <= det.val3 and end_value > det.val3)
+           ) as val1, det.val2, det.val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE(round((select IFNULL(val4,0)  from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'inventory-analysis' and data_val = main.FSupplyID)/
+                                (select val1 from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'weight' and data_val = main.FSupplyID),3),0) as val2,
+                   COALESCE(round((select IFNULL(val2,0) from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'inventory-analysis' and data_val = main.FSupplyID)/
+                                (select val4 from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'inventory-analysis' and data_val = main.FSupplyID),3),0) as val3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'sorting-cost' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                            ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+ 
+set errno=1029;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2, val3) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           ((select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'first_order_time' 
+                and start_value <= det.val2 and end_value > det.val2) + 
+            (select (case when det.val3 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'month_output' 
+                and start_value <= det.val3 and end_value > det.val3)
+           ) as val1, det.val2, det.val3  
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE((round((UNIX_TIMESTAMP(v_new_day) - 
+                         (select UNIX_TIMESTAMP(txt1) as first from lh_dw.data_statistics_results where time_val = base.time_val 
+                             and group1 = 'first-service-time' and data_val = main.FSupplyID))/86400,3)),0) as val2,
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                             and data_val = main.FSupplyID),0) as val3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'trust-index' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+ 
+set errno=1030;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2)
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           (select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where main_code = 'service-effect' 
+               and start_value <= det.val2 and end_value > det.val2) as val1, det.val2 
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   round((select  COALESCE((SUM(G.sign_out_time-G.sign_in_time)/count(E.FCancellation)),0) as num 
+                            from Trans_main_table as E left join uct_waste_purchase as F on E.FBillNo = F.order_id 
+                       left join uct_purchase_sign_in_out as G on F.id = G.purchase_id where E.FCancellation = 1 and UNIX_TIMESTAMP(E.FDate) > base.begin_time 
+                             and UNIX_TIMESTAMP(E.FDate) < base.end_time and E.FTranType = 'PUR' and G.sign_in_time > 0 and G.sign_out_time > 0 and E.FSupplyID = main.FSupplyID
+                    ),2) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'service-effect' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+
+set errno=1031;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2)
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           (select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where main_code = 'load-factor' 
+               and start_value <= det.val2 and end_value > det.val2) as val1, det.val2 
+      from (select sec.time_dims, sec.time_val, sec.begin_time, sec.end_time, sec.data_dims, sec.data_val, sec.stat_code, sec.group1, sec.group2,
+                   (case when sec.m2 = 0 then 0 else round((sec.m1/sec.m2),2) end) as val2
+              from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                           COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                                          and data_val = main.FSupplyID),0) as m1,
+                           COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'service-times' 
+                                          and data_val = main.FSupplyID),0) as m2
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'customer-index' as group1,
+                                   'load-factor' as group2
+                           ) as base,
+                           uct_waste_customer as cus 
+                 left join (select * 
+                              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                                   ) as base,
+                                   Trans_main_table 
+                             where UNIX_TIMESTAMP(FDate) > base.begin_time
+                               and UNIX_TIMESTAMP(FDate) < base.end_time 
+                             group by FSupplyID
+                           ) as main
+                        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+                     GROUP BY cus.id
+                   ) as sec
+           ) as det;
+ 
+set errno=1032;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2, val3)    
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           ((select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' 
+                and start_value <= det.val2 and end_value > det.val2) + 
+            (select (case when det.val3 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' 
+                and start_value <= det.val3 and end_value > det.val3)
+           ) as val1, det.val2, det.val3
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE(round((select IFNULL(val3,0)  from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'purchase-weight' and data_val = main.FSupplyID)/
+                                (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                                    and data_val = main.FSupplyID),3),0) as val2,
+                   COALESCE(round((select IFNULL(val1,0) from lh_dw.data_statistics_results where time_val = base.time_val 
+                                    and group1 = 'purchase-weight' and data_val = main.FSupplyID)/
+                                (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' 
+                                    and data_val = main.FSupplyID),3),0) as val3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'waste-structure' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+set errno=1033;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1, val2) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1, det.group2,
+           (select (case when det.val2 = 0 then 0 else output_value end) from lh_dw.data_statistics_value_interval where main_code = 'industry-ranking' 
+               and start_value <= det.val2 and end_value >= det.val2) as val1, det.val2
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+                   COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' 
+                              and group2 in ('sorting-cost','trust-index','service-effect','load-factor','waste-structure') and data_val = main.FSupplyID),0) as val2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'customer-index' as group1,
+                           'industry-ranking' as group2
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+set errno=1034;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' 
+                    and group2 in ('sorting-cost','trust-index','service-effect','load-factor','waste-structure','industry-ranking') 
+                    and data_val = main.FSupplyID),0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'customer-index' as group1,
+                   'the_overall_score' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1035;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, 0 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'weight-by-waste-class' as group1,
+                   'glass' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+               and FCancellation = 1 
+               and FTranType = 'PUR'
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1036;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+     select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+            base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.weight,0) as val1
+       from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                    UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                    'M' as time_dims, 
+                    '客户' as data_dims,
+                    'customer-monthly-report' as stat_code,
+                    'weight-by-waste-class' as group1,
+                    'metal' as group2
+            ) as base,
+            uct_waste_customer as cus 
+  left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                    ) as base,
+                    Trans_main_table as oldMain
+          left join Trans_assist_table as oldAssist
+                 on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+          left join uct_waste_cate as cate
+                 on oldAssist.FItemID = cate.id
+              where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                and oldMain.FCancellation = 1
+                and oldMain.FCorrent = 1  
+                and ((oldMain.FTranType = 'SOR') or (oldMain.FTranType = 'SEL' and oldMain.FSaleStyle = 1))
+                and cate.top_class = 'metal'
+                group by oldMain.FSupplyID
+            ) as main
+         on cus.id = main.FSupplyID  
+where cus.customer_type = 'up'
+      GROUP BY cus.id;
+
+set errno=1037;
+
+
+ insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+      select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+             base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.weight,0) as val1
+        from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                     UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                     TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                     TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                     'M' as time_dims, 
+                     '客户' as data_dims,
+                     'customer-monthly-report' as stat_code,
+                     'weight-by-waste-class' as group1,
+                     'plastic' as group2
+             ) as base,
+             uct_waste_customer as cus 
+   left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+                from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                             UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                     ) as base,
+                     Trans_main_table as oldMain
+           left join Trans_assist_table as oldAssist
+                  on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+           left join uct_waste_cate as cate
+                  on oldAssist.FItemID = cate.id
+               where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                 and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                 and oldMain.FCancellation = 1
+                 and oldMain.FCorrent = 1  
+                 and ((oldMain.FTranType = 'SOR') or (oldMain.FTranType = 'SEL' and oldMain.FSaleStyle = 1))
+                 and cate.top_class = 'plastic'
+                 group by oldMain.FSupplyID
+             ) as main
+          on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+       GROUP BY cus.id;
+
+set errno=1038;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+       select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+              base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.weight,0) as val1
+         from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                      UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                      TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                      TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                      'M' as time_dims, 
+                      '客户' as data_dims,
+                      'customer-monthly-report' as stat_code,
+                      'weight-by-waste-class' as group1,
+                      'waste-paper' as group2
+              ) as base,
+              uct_waste_customer as cus 
+    left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+                 from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                              UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                      ) as base,
+                      Trans_main_table as oldMain
+            left join Trans_assist_table as oldAssist
+                   on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+            left join uct_waste_cate as cate
+                   on oldAssist.FItemID = cate.id
+                where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                  and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                  and oldMain.FCancellation = 1
+                  and oldMain.FCorrent = 1  
+                  and ((oldMain.FTranType = 'SOR') or (oldMain.FTranType = 'SEL' and oldMain.FSaleStyle = 1))
+                  and cate.top_class = 'waste-paper'
+                  group by oldMain.FSupplyID
+              ) as main
+           on cus.id = main.FSupplyID  
+where cus.customer_type = 'up'
+        GROUP BY cus.id;
+
+set errno=1039;
+
+update lh_dw.data_statistics_results as main,
+           (select A.id,A.data_val,A.val1,B.weight,(case when B.weight = 0 then 0 else round((A.val1/B.weight),4) end) as rate,
+                   B.time_val,B.time_dims,B.group1
+              from lh_dw.data_statistics_results as A
+         left join (select data_val,SUM(val1) as weight,base.time_val,base.time_dims,base.group1  
+                      from lh_dw.data_statistics_results as C,
+                           (select TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   'weight-by-waste-class' as group1
+                           ) as base 
+                     where C.time_dims = base.time_dims 
+                       and C.time_val = base.time_val 
+                       and C.group1 = base.group1 
+                     group by C.data_val
+                   ) as B
+                on A.data_val = B.data_val
+             where A.time_dims = B.time_dims 
+               and A.time_val = B.time_val 
+               and A.group1 = B.group1 
+             order by  A.data_val
+           ) as detail
+       set main.val2 = detail.rate * 100
+     where main.time_dims = detail.time_dims
+       and main.time_val = detail.time_val
+       and main.group1 = detail.group1
+       and main.id = detail.id;
+
+set errno=1040;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, COALESCE(round((main.weight/1000)*1,1),0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'green-coin' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, SUM(oldAssist.FQty) as weight
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > 1546272000
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FCorrent = 1  
+               and oldMain.FSaleStyle in (0,1)
+               and (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')  
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+ 
+set errno=1041;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2) 
+    select det.time_dims, det.time_val, det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,  
+           (round((det.m1/1000)*4.2,3)) as val1, ((case when det.m2 = 0 then 0 else (round((det.m1 - det.m2)/det.m2,3)) end) *100) as val2
+      from (select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                   base.data_dims, cus.id as data_val, base.stat_code, base.group1, 
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and time_dims = base.time_dims
+                                  and group1 = 'weight-by-waste-structure' and group2 = 'low-value-waste' and data_val = main.FSupplyID),0) as m1,
+                   COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and time_dims = base.time_dims
+                                  and group1 = 'weight-by-waste-structure' and group2 = 'low-value-waste' and data_val = main.FSupplyID),0) as m2
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'rdf-value' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select * 
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                            ) as base,
+                            Trans_main_table 
+                     where UNIX_TIMESTAMP(FDate) > base.begin_time
+                       and UNIX_TIMESTAMP(FDate) < base.end_time 
+                       and FCancellation = 1 
+                       and FTranType = 'PUR'
+                     group by FSupplyID
+                   ) as main
+                on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+             GROUP BY cus.id
+           ) as det;
+ 
+set errno=1042;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-structure' 
+                             and group2 = 'low-value-waste' and data_val = main.FSupplyID),0)/1000),3)*0 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'low-value-waste' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1043;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'glass' and data_val = main.FSupplyID),0)/1000),3)*0 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'glass' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1044;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'metal' and data_val = main.FSupplyID),0)/1000),3)*4.77 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'metal' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1045;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'plastic' and data_val = main.FSupplyID),0)/1000),3)*2.37 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'plastic' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1046;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2,
+           round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight-by-waste-class' 
+                             and group2 = 'waste-paper' and data_val = main.FSupplyID),0)/1000),3)*2.51 as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'cers-by-waste-class' as group1,
+                   'waste-paper' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1047;
+
+
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2) 
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1,  0 as val1, 0 as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'certified-emission-reduction' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select * 
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table 
+             where UNIX_TIMESTAMP(FDate) > base.begin_time
+               and UNIX_TIMESTAMP(FDate) < base.end_time 
+             group by FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1048;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1)
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, COALESCE(main.money,0) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'lw-disposal-cost' as group1
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select oldMain.FSupplyID, SUM(oldAssist.FAmount) as money
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                   ) as base,
+                   Trans_main_table as oldMain
+         left join Trans_assist_table as oldAssist
+                on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+             where UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+               and oldMain.FCancellation = 1
+               and oldMain.FCorrent = 1  
+               and oldMain.FSaleStyle in (0,1)
+               and (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')  
+               and oldAssist.value_type = 'unvaluable'
+             group by oldMain.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1049;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'disposal-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'disposal-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'PUR' then oldMain.TalThird else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+ set errno=1050;
+ 
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'transport-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'transport-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'PUR' then oldMain.TalSecond else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1052;
+
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'consumables-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'consumables-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'SOR' then oldMain.TalSecond else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID  
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+ 
+set errno=1054;
+
+
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2)    
+    select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims, cus.id as data_val, base.stat_code, base.group1, base.group2, COALESCE(main.val1,0) as val1,
+           COALESCE(main.val1 - round((COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val2 and group1 = 'service-cost' 
+                                     and group2 = 'sorting-cost' and data_val = main.FSupplyID),0)),3),
+                 0) as val2
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-cost' as group1,
+                   'sorting-cost' as group2
+           ) as base,
+           uct_waste_customer as cus 
+ left join (select detail.FSupplyID, SUM(detail.val1) as  val1
+              from (select oldMain.FBillNo,oldMain.FSupplyID, base.begin_time, base.end_time, 
+                           MAX(CASE oldMain."FTranType" WHEN 'SOR' THEN oldMain."FDate"
+                                                WHEN 'SEL' THEN oldMain."FDate"
+                                                ELSE '1970-01-01 00:00:00'
+                                                END) AS maxDate,
+                           COALESCE(sum(case oldMain.FTranType when 'SOR' then oldMain.TalThird else '0' end),0) as val1
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table as oldMain
+                     where oldMain.FCancellation = 1
+                       and oldMain.FCorrent = 1
+                     group by oldMain.FBillNo
+                    having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                       and UNIX_TIMESTAMP(maxDate) < base.end_time
+                   ) as detail
+             group by detail.FSupplyID
+           ) as main
+        on cus.id = main.FSupplyID 
+ where cus.customer_type = 'up'
+     GROUP BY cus.id;
+
+set errno=1057;			
+			
+			
+
+            COMMIT;
+        EXCEPTION
+            WHEN OTHERS THEN
+                -- 回滚事务
+                ROLLBACK;
+                GET STACKED DIAGNOSTICS errno = PG_EXCEPTION_DETAIL;
+                "o_rv_err" := '月报表数据生成失败: ' || SQLERRM;
+        END;
+
+        IF errno = 1057 THEN
+            "o_rv_err" := '月报表数据生成成功.';
+        END IF;
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            ROLLBACK;
+            GET STACKED DIAGNOSTICS errno = PG_EXCEPTION_DETAIL;
+            "o_rv_err" := '月报表数据生成失败: ' || SQLERRM;
+    END;
+
+END;
+$$;
+-- 删除名为 "lh_dw_month_report" 的存储过程
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."lh_dw_month_report"(VARCHAR(50), INOUT INTEGER, INOUT VARCHAR(200));
+
+-- 创建名为 "lh_dw_month_report" 的存储过程
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."lh_dw_month_report"(IN "p_day" VARCHAR(50), INOUT io_rv INTEGER, INOUT io_err VARCHAR(200))
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_new_day VARCHAR(50);
+BEGIN
+    -- 初始化 io_rv
+    io_rv := 0;
+
+    -- 获取下一个月的日期
+    SELECT TO_CHAR(DATE_TRUNC('MONTH', p_day::date) + INTERVAL '1 MONTH', 'YYYY-MM-DD') INTO v_new_day;
+
+    -- 如果获取的日期为空，则设置错误信息并返回
+    IF v_new_day IS NULL THEN
+        io_rv := 400;
+        io_err := '获取月份失败.';
+        RETURN;
+    END IF;
+
+    -- 开始事务
+    BEGIN
+
+set errno=1000;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+select base.time_dims, base.time_val, 
+       FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+       base.data_dims, main.FSupplyID as data_val, 
+       base.stat_code,  base.group1, null as group2, null as txt1,
+       sum(main.TalFAmount) as val1
+  from Trans_main_table as main,
+       (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+               UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+               TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+               'M' as time_dims, 
+               '客户' as data_dims,
+               'customer-monthly-report' as stat_code,
+               'revenue' as group1
+       ) as base
+ where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+   and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+   and main.FCancellation = 1 
+   and main.FTranType = 'PUR' 
+GROUP BY main.FSupplyID;
+
+set errno=1001;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+  select base.time_dims, base.time_val, 
+         FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+         base.data_dims, main.FSupplyID as data_val, 
+         base.stat_code,  base.group1, null as group2, null as txt1,
+         sum(main.TalFQty) as val1
+    from Trans_main_table as main,
+         (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                 'M' as time_dims, 
+                 '客户' as data_dims,
+                 'customer-monthly-report' as stat_code,
+                 'weight' as group1
+         ) as base
+   where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+     and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+     and main.FCancellation = 1 
+     and main.FTranType = 'PUR' 
+ GROUP BY main.FSupplyID;
+ 
+ set errno=1002;
+ 
+ 
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3) 
+          select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+               det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((m1 - m2)/m2,4) end) * 100) as val3
+          from (select A.time_dims, A.time_val,FROM_UNIXTIME(A.begin_time) as begin_time, FROM_UNIXTIME(A.end_time) as end_time, A.data_dims, A.data_val, A.stat_code, A.group1,
+                         COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < A.end_time and FSupplyID = A.data_val),0) as m1, 
+                         COALESCE((select SUM(TalFAmount) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < (A.begin_time - 1) and FSupplyID = A.data_val),0) as m2 
+                    from (select base.time_dims, base.time_val, base.time_val2,base.begin_time, base.end_time,base.data_dims, main.FSupplyID as data_val, 
+                                   base.stat_code,  base.group1
+                              from Trans_main_table as main,
+                                   (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                        UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                        'M' as time_dims, 
+                                        '客户' as data_dims,
+                                        'customer-monthly-report' as stat_code,
+                                        'cumulative-revenue' as group1
+                                   ) as base
+                         where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                              and main.FCancellation = 1 
+                              and main.FTranType = 'PUR' 
+                         GROUP BY main.FSupplyID
+                         ) as A
+               ) as det;
+ 
+set errno=1003;
+ 
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3) 
+          select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+                 det.m1 as val1,(det.m1 - det.m2) as val2,((case when det.m2 = 0 then 0 else round((m1 - m2)/m2,4) end) * 100) as val3
+            from (select A.time_dims, A.time_val,FROM_UNIXTIME(A.begin_time) as begin_time, FROM_UNIXTIME(A.end_time) as end_time, A.data_dims, A.data_val, A.stat_code, A.group1,
+                         COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < A.end_time and FSupplyID = A.data_val),0) as m1, 
+                         COALESCE((select SUM(TalFQty) from Trans_main_table where FCancellation = 1 and FTranType = 'PUR' and UNIX_TIMESTAMP(FDate) > 1546272000 
+                                   and UNIX_TIMESTAMP(FDate) < (A.begin_time - 1) and FSupplyID = A.data_val),0) as m2 
+                    from (select base.time_dims, base.time_val, base.time_val2,base.begin_time, base.end_time,base.data_dims, main.FSupplyID as data_val, 
+                                   base.stat_code,  base.group1
+                              from Trans_main_table as main,
+                                   (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                        UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                        'M' as time_dims, 
+                                        '客户' as data_dims,
+                                        'customer-monthly-report' as stat_code,
+                                        'cumulative-weight' as group1
+                                   ) as base
+                         where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                              and main.FCancellation = 1 
+                              and main.FTranType = 'PUR' 
+                         GROUP BY main.FSupplyID
+                         ) as A
+                 ) as det;
+ 
+set errno=1004; 
+ 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, 
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1, base.group2,
+                    COALESCE((select SUM(oldAssist.FQty) 
+                              from Trans_main_table as oldMain
+                         left join Trans_assist_table as oldAssist
+                              on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                         where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+                              and oldMain.FCancellation = 1 
+                              and oldMain.FCorrent = 1
+                              and oldMain.FSaleStyle in (0,1) 
+                              and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                              and oldAssist.value_type = 'valuable'
+                              and oldMain.FSupplyID = main.FSupplyID),0) as val1
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-structure' as group1,
+                         'recyclable-waste' as group2
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+          GROUP BY main.FSupplyID;
+
+set errno=1005; 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, 
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1, base.group2,
+                    COALESCE((select SUM(oldAssist.FQty) 
+                              from Trans_main_table as oldMain
+                         left join Trans_assist_table as oldAssist
+                              on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                         where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+                              and oldMain.FCancellation = 1 
+                              and oldMain.FCorrent = 1
+                              and oldMain.FSaleStyle in (0,1) 
+                              and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                              and oldAssist.value_type = 'unvaluable'
+                              and oldMain.FSupplyID = main.FSupplyID),0) as val1
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-structure' as group1,
+                         'low-value-waste' as group2
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+          GROUP BY main.FSupplyID;
+
+set errno=1006; 
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, 
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1, base.group2,
+                    COALESCE((select SUM(oldAssist.FQty) 
+                              from Trans_main_table as oldMain
+                         left join Trans_assist_table as oldAssist
+                              on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                         where (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL')
+                              and oldMain.FCancellation = 1 
+                              and oldMain.FCorrent = 1
+                              and oldMain.FSaleStyle in (0,1) 
+                              and UNIX_TIMESTAMP(oldMain.FDate) > base.begin_time
+                              and UNIX_TIMESTAMP(oldMain.FDate) < base.end_time 
+                              and oldAssist.value_type = 'dangerous'
+                              and oldMain.FSupplyID = main.FSupplyID),0) as val1
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-structure' as group1,
+                         'hazardous-waste' as group2
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+          GROUP BY main.FSupplyID;
+
+set errno=1007;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select res.data_val, 
+                          base.data_dims,
+                          base.time_val,
+                          base.time_dims,
+                          base.stat_code,
+                          base.group1,
+                          base.group2,
+                          sum(if(res.time_val = base.time_val,res.val1,0)) as m1, 
+                          sum(if(res.time_val = base.time_val2,res.val1,0)) as m2         
+                     from lh_dw.data_statistics_results as res,
+                                          (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                                  UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                                  TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                                  TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                                  'M' as time_dims, 
+                                                  '客户' as data_dims,
+                                                  'customer-monthly-report' as stat_code,
+                                                  'weight-by-waste-structure' as group1,
+                                                  'recyclable-waste' as group2
+                                          ) as base
+                    where (res.time_val = base.time_val or res.time_val = base.time_val2) 
+                      and res.stat_code = base.stat_code
+                      and res.group2 = base.group2
+                      and res.data_dims = base.data_dims
+                 group by res.data_val,
+                          base.data_dims,
+                          base.time_val,
+                          base.time_dims,
+                          base.stat_code,
+                          base.group1,
+                          base.group2) as cal
+    set main.val2 = if(cal.m2=0, 0, cal.m1-cal.m2)      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val;
+
+set errno=1008;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select res.data_val, 
+                          base.data_dims,
+                          base.time_val,
+                          base.time_dims,
+                          base.stat_code,
+                          base.group1,
+                          base.group2,
+                          sum(if(res.time_val = base.time_val,res.val1,0)) as m1, 
+                          sum(if(res.time_val = base.time_val2,res.val1,0)) as m2         
+                     from lh_dw.data_statistics_results as res,
+                                          (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                                  UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                                  TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                                  TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                                  'M' as time_dims, 
+                                                  '客户' as data_dims,
+                                                  'customer-monthly-report' as stat_code,
+                                                  'weight-by-waste-structure' as group1,
+                                                  'low-value-waste' as group2
+                                          ) as base
+                    where (res.time_val = base.time_val or res.time_val = base.time_val2) 
+                      and res.stat_code = base.stat_code
+                      and res.group2 = base.group2
+                      and res.data_dims = base.data_dims
+                 group by res.data_val,
+                          base.data_dims,
+                          base.time_val,
+                          base.time_dims,
+                          base.stat_code,
+                          base.group1,
+                          base.group2) as cal
+    set main.val2 = if(cal.m2=0, 0, cal.m1-cal.m2)      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val;
+
+set errno=1009;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select res.data_val, 
+                          base.data_dims,
+                          base.time_val,
+                          base.time_dims,
+                          base.stat_code,
+                          base.group1,
+                          base.group2,
+                          sum(if(res.time_val = base.time_val,res.val1,0)) as m1, 
+                          sum(if(res.time_val = base.time_val2,res.val1,0)) as m2         
+                     from lh_dw.data_statistics_results as res,
+                                          (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                                  UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                                  TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                                  TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                                  'M' as time_dims, 
+                                                  '客户' as data_dims,
+                                                  'customer-monthly-report' as stat_code,
+                                                  'weight-by-waste-structure' as group1,
+                                                  'hazardous-waste' as group2
+                                          ) as base
+                    where (res.time_val = base.time_val or res.time_val = base.time_val2) 
+                      and res.stat_code = base.stat_code
+                      and res.group2 = base.group2
+                      and res.data_dims = base.data_dims
+                 group by res.data_val,
+                          base.data_dims,
+                          base.time_val,
+                          base.time_dims,
+                          base.stat_code,
+                          base.group1,
+                          base.group2) as cal
+    set main.val2 = if(cal.m2=0, 0, cal.m1-cal.m2)      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val;
+
+set errno=1010;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                        (select A.id,A.data_val,A.val1,B.weight,(case when B.weight = 0 then 0 else round((A.val1/B.weight),4) end) as rate,B.time_val,B.time_dims,B.group1
+                        from lh_dw.data_statistics_results as A
+                   left join (select data_val,SUM(val1) as weight,base.time_val,base.time_dims,base.group1  
+                                from lh_dw.data_statistics_results as C,
+                                     (select TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                     'M' as time_dims, 
+                                     'weight-by-waste-structure' as group1
+                                     ) as base 
+                               where C.time_dims = base.time_dims 
+                                 and C.time_val = base.time_val 
+                                 and C.group1 = base.group1 
+                            group by C.data_val
+                             ) as B
+                          on A.data_val = B.data_val
+                       where A.time_dims = B.time_dims 
+                         and A.time_val = B.time_val 
+                         and A.group1 = B.group1 
+                         order by  A.data_val
+                        ) as detail
+    set main.val3 = detail.rate * 100
+  where main.time_dims = detail.time_dims
+    and main.time_val = detail.time_val
+    and main.group1 = detail.group1
+    and main.id = detail.id;
+
+set errno=1011;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select main.time_dims, main.time_val,FROM_UNIXTIME(main.begin_time) as begin_time, FROM_UNIXTIME(main.end_time) as end_time,
+           main.data_dims,main.data_val,main.stat_code,main.group1, main.group2, left((MIN(det.FDate)),10) as txt1, main.val1  
+      from (select base.time_dims, base.time_val,base.begin_time, base.end_time,
+                   base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, null as group2,  null as val1  
+              from Trans_main_table as A,
+                   (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'first-service-time' as group1
+                   ) as base
+             where A.FCancellation = 1 
+               and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+               and UNIX_TIMESTAMP(A.FDate) < base.end_time
+               and A.FTranType = 'PUR' 
+             group by A.FSupplyID
+           ) as main
+ left join Trans_main_table as det
+        on main.data_val = det.FSupplyID
+       and UNIX_TIMESTAMP(det.FDate) < main.end_time
+       and UNIX_TIMESTAMP(det.FDate) > 1546272000
+       and det.FCancellation = 1
+       and det.FTranType = 'PUR' 
+       group by det.FSupplyID;
+ 
+set errno=1012;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, null as group2, null as txt1, count(distinct A.FBillNo) as val1,
+           (select COALESCE(SUM(Y.train_number),0) as num from Trans_main_table as X left join uct_waste_purchase as Y on X.FBillNo = Y.order_id 
+                     where X.FCancellation = 1  and X.FTranType = 'PUR' and UNIX_TIMESTAMP(X.FDate) > base.begin_time 
+                    and UNIX_TIMESTAMP(X.FDate) < base.end_time  and X.FSupplyID = A.FSupplyID) as val2  
+      from Trans_main_table as A,
+           (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'service-times' as group1
+           ) as base
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+  group by A.FSupplyID;
+
+set errno=1013;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3)
+            select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time, base.data_dims, 
+                   cus.id as data_val, base.stat_code, base.group1,main.m1 as val1, main.m2 as val2,
+                   ((case when main.m2 = 0 then 0 else round((main.m1 - main.m2)/main.m2,4) end) * 100) as val3
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'cumulative-service-times' as group1
+                   ) as base,
+                   uct_waste_customer as cus 
+         left join (select count(distinct if(UNIX_TIMESTAMP(FDate) < base.end_time, FBillNo, null)) as m1,
+                           count(distinct if(UNIX_TIMESTAMP(FDate) < (base.begin_time - 1), FBillNo, null)) as m2,
+                           FSupplyID
+                      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(now(), INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(now(), INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time
+                           ) as base,
+                           Trans_main_table 
+                     where FCancellation = 1 
+                       and FTranType = 'PUR' 
+                       and UNIX_TIMESTAMP(FDate) > 1546272000
+                       group by FSupplyID
+                    ) as main
+                on main.FSupplyID = cus.id
+             where cus.customer_type = 'up'
+             GROUP BY cus.id;
+
+set errno=1014;
+
+
+update 
+          lh_dw.data_statistics_results as main,
+                         (select A.time_dims,A.time_val,A.group1,A.data_val,(case when A.m1 = 0 then 0 else round((A.val1 - A.m1)/A.m1,3) end) as val2, (A.val1 - A.m1) as val3
+                            from (select main.val1, main.time_dims, main.data_val ,main.time_val,  base.time_val2, main.group1, 
+                                         COALESCE((select val1 
+                                                   from lh_dw.data_statistics_results 
+                                                   where time_dims = base.time_dims 
+                                                   and time_val = base.time_val2
+                                                   and group1 = base.group1
+                                                   and data_val = main.data_val),0) as m1
+                                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                              UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                              TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                              TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                              'M' as time_dims, 
+                                              '客户' as data_dims,
+                                              'customer-monthly-report' as stat_code,
+                                              'cumulative-service-times' as group1
+                                         ) as base,
+                                         lh_dw.data_statistics_results as main
+                                   where main.time_dims = base.time_dims 
+                                     and main.time_val = base.time_val
+                                     and main.group1 = base.group1) as A
+                         ) as detail
+     set main.val2 = detail.val2 * 100,
+         main.val3 = detail.val3
+   where main.time_val = detail.time_val
+     and main.time_dims= detail.time_dims
+     and main.group1 = detail.group1 
+     and main.data_val = detail.data_val;
+ 
+set errno=1015; 
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MIN(B.Tallot-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1016;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(AVG(B.Tallot-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1017;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MAX(B.Tallot-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1018;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round((AVG(B.Tallot-B.Tcreate)+((MAX(B.Tallot-B.Tcreate)+MIN(B.Tallot-B.Tcreate)+4*AVG(B.Tallot-B.Tcreate))/3))/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'order-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1019;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MIN(B.Tpurchase-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'fastest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1020;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(AVG(B.Tpurchase-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'average-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1021;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round(MAX(B.Tpurchase-B.Tcreate)/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'slowest-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1022;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select base.time_dims, base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+           base.data_dims,A.FSupplyID as data_val,base.stat_code,base.group1, base.group2, null as txt1, 
+           round((AVG(B.Tpurchase-B.Tcreate)+((MAX(B.Tpurchase-B.Tcreate)+MIN(B.Tpurchase-B.Tcreate)+4*AVG(B.Tpurchase-B.Tcreate))/3))/3600,1) as val1
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'disposal-response-time' as group1,
+                   'plan-resp-time' as group2
+           ) as base,
+           Trans_main_table as A
+ left join Trans_log_table as B
+        on A.FInterID = B.FInterID and A.FTranType = B.FTranType
+     where A.FCancellation = 1 
+       and UNIX_TIMESTAMP(A.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(A.FDate) < base.end_time
+       and A.FTranType = 'PUR' 
+       and B.TallotOver = 1
+  group by A.FSupplyID;
+
+set errno=1023;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, txt1, val1, val2) 
+    select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time,FROM_UNIXTIME(base.end_time) as end_time,base.data_dims,
+           main.FSupplyID as data_val,base.stat_code,base.group1,cat.name,sum(det.FAmount) as money,sum(det.FQty) as weight
+      from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                   'M' as time_dims, 
+                   '客户' as data_dims,
+                   'customer-monthly-report' as stat_code,
+                   'revenue-by-waste-cate' as group1
+           ) as base,
+           Trans_main_table as main
+ left join Trans_assist_table as det
+        on main.FInterID = det.FinterID and main.FTranType = det.FTranType
+ left join uct_waste_cate as cat
+        on det.FItemID = cat.id
+     where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+       and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+       and main.FCancellation = 1 
+       and main.FTranType = 'PUR' 
+       and det.value_type = 'valuable'
+     GROUP BY main.FSupplyID,det.FItemID;
+ 
+
+        set errno=1024;
+  
+        UPDATE lh_dw.data_statistics_results as a
+        INNER JOIN (
+            SELECT main.id, main.data_val, main.val1,
+            CASE 
+                WHEN curGroup=main.data_val THEN row = row + 1 
+                WHEN curGroup<>main.data_val THEN row = 1 
+            END AS urank,
+            curGroup= main.data_val, preAge= main.val1
+            FROM (
+                SELECT 
+                    0 as curGroup,
+                    0 as preAge,
+                    0 as row,
+                    'revenue-by-waste-cate' as group1,
+                    TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                    '客户' as data_dims
+                ) as base,
+                lh_dw.data_statistics_results as main
+            WHERE main.group1 = base.group1
+            AND main.time_val = base.time_val
+            AND main.data_dims = base.data_dims
+            ORDER BY main.data_val ASC, main.val1 DESC
+        ) b 
+        ON a.id=b.id
+        SET a.val3=b.urank;
+		
+
+        set errno=1025;
+
+        UPDATE lh_dw.data_statistics_results as a
+        INNER JOIN (
+            SELECT main.id, main.data_val, main.val2, 
+                              CASE WHEN curGroup=main.data_val THEN row = row + 1 WHEN curGroup<>main.data_val THEN row=1 END urank,
+                              curGroup= main.data_val, preAge= main.val2
+                         FROM (select 0 as curGroup,
+                                        0 as preAge,
+                                        0 as row,
+                                        'revenue-by-waste-cate' as group1,
+                                        TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                        '客户' as data_dims
+                              ) as base,
+                              lh_dw.data_statistics_results as main
+                    WHERE main.group1 = base.group1
+                         AND main.time_val = base.time_val
+                         AND main.data_dims = base.data_dims
+                    ORDER BY main.data_val ASC, main.val2 DESC
+                    ) b 
+               ON a.id=b.id
+        SET a.val4=b.urank;
+
+        set errno=1026;
+
+        INSERT INTO lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2, val3) 
+        SELECT base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+            base.data_dims,main.FSupplyID as data_val, base.stat_code, base.group1, 
+            SUM(CASE WHEN assist.value_type IN ('valuable','unvaluable') THEN assist.FQty ELSE 0 END) as val1,
+            SUM(CASE WHEN assist.value_type = 'valuable' THEN assist.FQty ELSE 0 END) as val2,
+            SUM(CASE WHEN assist.value_type = 'unvaluable' THEN assist.FQty ELSE 0 END) as val3
+        FROM (
+            SELECT 
+                UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                'M' as time_dims, 
+                '客户' as data_dims,
+                'customer-monthly-report' as stat_code,
+                'purchase-weight' as group1
+        ) as base
+        JOIN Trans_main_table as main
+        ON UNIX_TIMESTAMP(main.FDate) > base.begin_time
+        AND UNIX_TIMESTAMP(main.FDate) < base.end_time 
+        AND main.FTranType = 'PUR'
+        AND main.FCancellation = 1 
+        LEFT JOIN Trans_assist_table as assist
+        ON main.FInterID = assist.FinterID
+        AND main.FTranType = assist.FTranType
+        GROUP BY base.time_dims, base.time_val, base.begin_time, base.end_time,
+            base.data_dims, main.FSupplyID, base.stat_code, base.group1;
+
+		
+set errno=1027;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2, val3, val4, val5) 
+     select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+               base.data_dims,main.FSupplyID as data_val, base.stat_code, base.group1,   
+               SUM(assist.FAmount) as val1,
+               SUM(if(assist.FTranType = 'SOR' and assist.disposal_way = 'sorting',assist.FAmount,0)) as val2,
+               SUM(if(((assist.FTranType = 'SOR' and assist.disposal_way = 'weighing') or (assist.FTranType = 'SEL')),assist.FAmount,0)) as val3,
+               SUM(if(assist.FTranType = 'SOR' and assist.disposal_way = 'sorting',assist.FQty,0)) as val4,
+               SUM(if(((assist.FTranType = 'SOR' and assist.disposal_way = 'weighing') or (assist.FTranType = 'SEL')),assist.FQty,0)) as val5
+       from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'inventory-analysis' as group1
+               ) as base,
+               Trans_main_table as main
+   left join Trans_assist_table as assist
+          on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+       where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+         and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+         and main.FCancellation = 1
+         and main.FCorrent = 1  
+     group by main.FSupplyID;
+ 
+set errno=1028;
+
+  
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2, val3) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                 ((select output_value from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' and start_value <= A.val2 and end_value > A.val2) + 
+                  (select output_value from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' and start_value <= A.val3 and end_value > A.val3)
+                 ) as val1,A.val2,A.val3
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         COALESCE(round((select IFNULL(val4,0)  from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'inventory-analysis' and data_val = main.data_val)/
+                                      (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' and data_val = main.data_val),3),0) as val2,
+                         COALESCE(round((select IFNULL(val2,0) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'inventory-analysis' and data_val = main.data_val)/
+                                      (select val4 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'inventory-analysis' and data_val = main.data_val),3),0) as val3
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                 'M' as time_dims, 
+                                 '客户' as data_dims,
+                                 'customer-monthly-report' as stat_code,
+                                 'customer-index' as group1,
+                                 'sorting-cost' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                   where main.time_val = base.time_val
+                     and main.stat_code = 'customer-monthly-report'
+                     and main.group1 = 'weight') as A;
+					 
+ 
+set errno=1029;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2, val3) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                 ((select output_value from lh_dw.data_statistics_value_interval where vice_code = 'first_order_time' and start_value <= A.val2 and end_value > A.val2) + 
+                  (select output_value from lh_dw.data_statistics_value_interval where vice_code = 'month_output' and start_value <= A.val3 and end_value > A.val3)
+                 ) as val1,A.val2,A.val3
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         round((UNIX_TIMESTAMP(v_new_day) - (select UNIX_TIMESTAMP(txt1) as first from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'first-service-time' and data_val = main.data_val))/86400,3) as val2,
+                         (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' and data_val = main.data_val) as val3
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                 'M' as time_dims, 
+                                 '客户' as data_dims,
+                                 'customer-monthly-report' as stat_code,
+                                 'customer-index' as group1,
+                                 'trust-index' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                   where main.time_val = base.time_val
+                     and main.stat_code = 'customer-monthly-report'
+                     and main.group1 = 'weight') as A;
+ 
+set errno=1030;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2)
+     select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+            (select output_value from lh_dw.data_statistics_value_interval where main_code = 'service-effect' and start_value <= A.val2 and end_value > A.val2) as val1,
+            A.val2
+       from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                    base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                    round((select  COALESCE((SUM(G.sign_out_time-G.sign_in_time)/count(E.FCancellation)),0) as num from Trans_main_table as E left join uct_waste_purchase as F on E.FBillNo = F.order_id 
+                                   left join uct_purchase_sign_in_out as G on F.id = G.purchase_id where E.FCancellation = 1 and UNIX_TIMESTAMP(E.FDate) > base.begin_time 
+                                   and UNIX_TIMESTAMP(E.FDate) < base.end_time and E.FTranType = 'PUR' and G.sign_in_time > 0 and G.sign_out_time > 0 and E.FSupplyID = main.data_val
+                    ),2) as val2
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'customer-index' as group1,
+                            'service-effect' as group2
+                    ) as base,
+                    lh_dw.data_statistics_results as main
+              where main.time_val = base.time_val
+                and main.stat_code = 'customer-monthly-report'
+                and main.group1 = 'weight') as A;
+
+set errno=1031;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2)
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                 (select output_value from lh_dw.data_statistics_value_interval where main_code = 'load-factor' and start_value <= A.val2 and end_value > A.val2) as val1,
+                 A.val2
+            from (select det.time_dims,det.time_val,det.begin_time, det.end_time,det.data_dims, det.data_val, det.stat_code, det.group1, 
+                         det.group2, det.txt1 as txt1,(case when det.m2 = 0 then 0 else round((m1/m2),2) end) as val2
+                    from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                                 base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                                 COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' 
+                                   and data_val = main.data_val),0) as m1,
+                                 COALESCE((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'service-times' 
+                                   and data_val = main.data_val),0) as m2
+                            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                         'M' as time_dims, 
+                                         '客户' as data_dims,
+                                         'customer-monthly-report' as stat_code,
+                                         'customer-index' as group1,
+                                         'load-factor' as group2
+                                 ) as base,
+                                 lh_dw.data_statistics_results as main
+                           where main.time_val = base.time_val
+                             and main.stat_code = 'customer-monthly-report'
+                             and main.group1 = 'weight'
+                         ) as det
+                 ) as A;
+ 
+set errno=1032;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2, val3) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                    ((select output_value from lh_dw.data_statistics_value_interval where vice_code = 'sorting_accounted' and start_value <= A.val2 and end_value > A.val2) + 
+                    (select output_value from lh_dw.data_statistics_value_interval where vice_code = 'the_unit_price' and start_value <= A.val3 and end_value > A.val3)
+                    ) as val1,A.val2,A.val3
+               from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         COALESCE(round((select IFNULL(val3,0)  from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' and data_val = main.data_val)/
+                                        (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'weight' and data_val = main.data_val),3),0) as val2,
+                         COALESCE(round((select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' and data_val = main.data_val)/
+                                        (select val1 from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'purchase-weight' and data_val = main.data_val),3),0) as val3
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'customer-index' as group1,
+                                   'waste-structure' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                    where main.time_val = base.time_val
+                         and main.stat_code = 'customer-monthly-report'
+                         and main.group1 = 'weight') as A;
+set errno=1033;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1, val2) 
+          select A.time_dims,A.time_val,A.begin_time, A.end_time,A.data_dims, A.data_val, A.stat_code, A.group1, A.group2, null as txt1, 
+                    (select output_value from lh_dw.data_statistics_value_interval where main_code = 'industry-ranking' and start_value <= A.val2 and end_value >= A.val2)  as val1,A.val2
+               from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                         COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' and data_val = main.data_val),0) as val2
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'customer-index' as group1,
+                                   'industry-ranking' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as main
+                    where main.time_val = base.time_val
+                         and main.stat_code = 'customer-monthly-report'
+                         and main.group1 = 'weight') as A;
+set errno=1034;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, main.data_val, base.stat_code, base.group1, base.group2, null as txt1,
+                 COALESCE((select SUM(val1) from lh_dw.data_statistics_results where time_val = base.time_val and group1 = 'customer-index' and data_val = main.data_val),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'customer-index' as group1,
+                         'the_overall_score' as group2
+                 ) as base,
+                 lh_dw.data_statistics_results as main
+           where main.time_val = base.time_val
+             and main.stat_code = 'customer-monthly-report'
+             and main.group1 = 'weight';
+ 
+set errno=1035;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1, 0 as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'glass' as group2
+                 ) as base,
+                 Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+        GROUP BY secondary.FSupplyID;
+
+set errno=1036;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1,
+                  COALESCE((select SUM(assist.FQty) from Trans_main_table as main
+                       left join Trans_assist_table as assist
+                              on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+                       left join uct_waste_cate as cate
+                              on assist.FItemID = cate.id
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                             and main.FCancellation = 1
+                             and main.FCorrent = 1  
+                             and ((main.FTranType = 'SOR') or (main.FTranType = 'SEL' and main.FSaleStyle = 1))
+                             and cate.top_class = 'metal'
+                             and main.FSupplyID = secondary.FSupplyID),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'metal' as group2
+                  ) as base,
+                    Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+          GROUP BY secondary.FSupplyID;
+
+set errno=1037;
+
+
+ insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1,
+                  COALESCE((select SUM(assist.FQty) from Trans_main_table as main
+                       left join Trans_assist_table as assist
+                              on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+                       left join uct_waste_cate as cate
+                              on assist.FItemID = cate.id
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                             and main.FCancellation = 1
+                             and main.FCorrent = 1  
+                             and ((main.FTranType = 'SOR') or (main.FTranType = 'SEL' and main.FSaleStyle = 1))
+                             and cate.top_class = 'plastic'
+                             and main.FSupplyID = secondary.FSupplyID),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'plastic' as group2
+                 ) as base,
+                 Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+        GROUP BY secondary.FSupplyID;
+
+set errno=1038;
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+          select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, secondary.FSupplyID, base.stat_code, base.group1, base.group2, null as txt1,
+                  COALESCE((select SUM(assist.FQty) from Trans_main_table as main
+                       left join Trans_assist_table as assist
+                              on main.FInterID = assist.FinterID and main.FTranType = assist.FTranType
+                       left join uct_waste_cate as cate
+                              on assist.FItemID = cate.id
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                             and main.FCancellation = 1
+                             and main.FCorrent = 1  
+                             and ((main.FTranType = 'SOR') or (main.FTranType = 'SEL' and main.FSaleStyle = 1))
+                             and cate.top_class = 'waste-paper'
+                             and main.FSupplyID = secondary.FSupplyID),0) as val1
+            from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'weight-by-waste-class' as group1,
+                         'waste-paper' as group2
+                 ) as base,
+                 Trans_main_table as secondary
+           where UNIX_TIMESTAMP(secondary.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(secondary.FDate) < base.end_time 
+             and secondary.FCancellation = 1 
+             and secondary.FTranType = 'PUR' 
+          GROUP BY secondary.FSupplyID;
+
+set errno=1039;
+
+update 
+          lh_dw.data_statistics_results as main,
+                              (select A.id,A.data_val,A.val1,B.weight,(case when B.weight = 0 then 0 else round((A.val1/B.weight),4) end) as rate,B.time_val,B.time_dims,B.group1
+                              from lh_dw.data_statistics_results as A
+                         left join (select data_val,SUM(val1) as weight,base.time_val,base.time_dims,base.group1  
+                                      from lh_dw.data_statistics_results as C,
+                                           (select TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                                   'M' as time_dims, 
+                                                   'weight-by-waste-class' as group1
+                                           ) as base 
+                                     where C.time_dims = base.time_dims 
+                                       and C.time_val = base.time_val 
+                                       and C.group1 = base.group1 
+                                  group by C.data_val
+                                   ) as B
+                              on A.data_val = B.data_val
+                         where A.time_dims = B.time_dims 
+                              and A.time_val = B.time_val 
+                              and A.group1 = B.group1 
+                              order by  A.data_val
+                              ) as detail
+          set main.val2 = detail.rate * 100
+        where main.time_dims = detail.time_dims
+          and main.time_val = detail.time_val
+          and main.group1 = detail.group1
+          and main.id = detail.id;
+
+set errno=1040;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1)  
+          select det.time_dims, det.time_val,det.begin_time, det.end_time, det.data_dims, det.data_val, det.stat_code, det.group1,
+                 round((det.m1/1000)*1,1) as val1
+            from (select A.time_dims, A.time_val,FROM_UNIXTIME(A.begin_time) as begin_time, FROM_UNIXTIME(A.end_time) as end_time, 
+                         A.data_dims, A.data_val, A.stat_code, A.group1,
+                           COALESCE((select SUM(oldAssist.FQty) 
+                                     from Trans_main_table as oldMain 
+                                left join Trans_assist_table as oldAssist 
+                                       on oldMain.FInterID = oldAssist.FinterID and oldMain.FTranType = oldAssist.FTranType
+                                    where oldMain.FCancellation = 1 
+                                      and oldMain.FCorrent = 1
+                                      and oldMain.FSaleStyle in (0,1)
+                                      and (oldMain.FTranType = 'SOR' or oldMain.FTranType = 'SEL') 
+                                      and UNIX_TIMESTAMP(oldMain.FDate) > 1546272000 
+                                      and UNIX_TIMESTAMP(oldMain.FDate) < A.end_time 
+                                      and oldMain.FSupplyID = A.data_val),0) as m1
+                      from (select base.time_dims, base.time_val, base.time_val2,base.begin_time, base.end_time,base.data_dims, main.FSupplyID as data_val, 
+                                     base.stat_code,  base.group1
+                                from Trans_main_table as main,
+                                     (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'green-coin' as group1
+                                     ) as base
+                           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                                and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                                and main.FCancellation = 1 
+                                and main.FTranType = 'PUR' 
+                           GROUP BY main.FSupplyID
+                           ) as A
+                 ) as det;
+ 
+ 
+set errno=1041;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1,  val1, val2)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1, main.val1,
+               (case when main.val3 = 0 then 0 else (round((main.val1 - main.val3)/val3,3)) end) as val2
+          from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1, (round((A.val1/1000)*4.2,3)) as val1, 
+                         COALESCE((select val1 
+                                   from lh_dw.data_statistics_results
+                                   where time_val = base.time_val2
+                                   and time_dims = base.time_dims
+                                   and group1 = base.group1
+                                   and data_val = A.data_val),0) as val3    
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'rdf-value' as group1
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                    where A.time_val = base.time_val
+                    and A.time_dims = base.time_dims
+                    and A.group1 = 'weight-by-waste-structure'
+                    and A.group2 = 'low-value-waste'
+               ) as main;
+ 
+set errno=1042;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1, main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1, base.group2, (round((COALESCE(A.val1,0)/1000)*0,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'low-value-waste' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                   where A.time_val = base.time_val
+                     and A.time_dims = base.time_dims
+                     and A.group1 = 'weight-by-waste-structure'
+                     and A.group2 = 'low-value-waste'
+                 ) as main;
+
+set errno=1043;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1,base.group2, (round((COALESCE(A.val1,0)/1000)*0,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'glass' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                   where A.time_val = base.time_val
+                     and A.time_dims = base.time_dims
+                     and A.group1 = 'weight-by-waste-class'
+                     and A.group2 = 'glass'
+                 ) as main;
+ 
+set errno=1044;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1, base.group2,(round((COALESCE(A.val1,0)/1000)*4.77,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'metal' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                    where A.time_val = base.time_val
+                    and A.time_dims = base.time_dims
+                    and A.group1 = 'weight-by-waste-class'
+                    and A.group2 = 'metal'
+                 ) as main;
+ 
+set errno=1045;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1,base.group2, (round((COALESCE(A.val1,0)/1000)*2.37,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'plastic' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                    where A.time_val = base.time_val
+                    and A.time_dims = base.time_dims
+                    and A.group1 = 'weight-by-waste-class'
+                    and A.group2 = 'plastic'
+                 ) as main;
+ 
+set errno=1046;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2,  val1)  
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1,main.group2, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, A.data_val, base.stat_code, base.group1,base.group2, (round((COALESCE(A.val1,0)/1000)*2.51,3)) as val1  
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                   UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                   TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                   'M' as time_dims, 
+                                   '客户' as data_dims,
+                                   'customer-monthly-report' as stat_code,
+                                   'cers-by-waste-class' as group1,
+                                   'waste-paper' as group2
+                         ) as base,
+                         lh_dw.data_statistics_results as A
+                   where A.time_val = base.time_val
+                     and A.time_dims = base.time_dims
+                     and A.group1 = 'weight-by-waste-class'
+                     and A.group2 = 'waste-paper'
+                 ) as main;
+
+set errno=1047;
+
+
+  insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1, val2) 
+          select base.time_dims, base.time_val, FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                 base.data_dims, main.FSupplyID as data_val, base.stat_code,  base.group1, 0 as val1, 0 as val2
+            from Trans_main_table as main,
+                 (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                         UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                         TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                         'M' as time_dims, 
+                         '客户' as data_dims,
+                         'customer-monthly-report' as stat_code,
+                         'certified-emission-reduction' as group1
+                 ) as base
+           where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+             and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+             and main.FCancellation = 1 
+             and main.FTranType = 'PUR' 
+          GROUP BY main.FSupplyID;
+
+set errno=1048;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, val1) 
+          select main.time_dims,main.time_val,main.begin_time, main.end_time,main.data_dims, main.data_val, main.stat_code, main.group1, main.val1
+            from (select base.time_dims,base.time_val,FROM_UNIXTIME(base.begin_time) as begin_time, FROM_UNIXTIME(base.end_time) as end_time,
+                         base.data_dims, main.FSupplyID as data_val, base.stat_code, base.group1,  
+                         COALESCE((select sum(assist.FAmount) 
+                                   from Trans_main_table as mainOld
+                              left join Trans_assist_table as assist
+                                     on mainOld.FInterID = assist.FinterID and mainOld.FTranType = assist.FTranType
+                                  where UNIX_TIMESTAMP(mainOld.FDate) > base.begin_time
+                                    and UNIX_TIMESTAMP(mainOld.FDate) < base.end_time
+                                    and assist.value_type = 'unvaluable'
+                                    and mainOld.FCancellation = 1 
+                                    and mainOld.FCorrent = 1
+                                    and mainOld.FSaleStyle in (0,1)
+                                    and (mainOld.FTranType = 'SOR' or mainOld.FTranType = 'SEL')
+                                    and mainOld.FSupplyID = main.FSupplyID),0) as val1    
+                    from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                 UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                 TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                 'M' as time_dims, 
+                                 '客户' as data_dims,
+                                 'customer-monthly-report' as stat_code,
+                                 'lw-disposal-cost' as group1
+                         ) as base,
+                         Trans_main_table as main
+                   where UNIX_TIMESTAMP(main.FDate) > base.begin_time
+                     and UNIX_TIMESTAMP(main.FDate) < base.end_time 
+                     and main.FCancellation = 1 
+                     and main.FTranType = 'PUR' 
+                    GROUP BY main.FSupplyID 
+                 ) as main;
+ 
+set errno=1049;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+     select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+            B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val1) as val1
+       from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                    base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                    sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                    sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                    sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                    sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'service-cost' as group1,
+                            'disposal-cost' as group2
+                    ) as base,
+                    Trans_main_table as A
+              where A.FCancellation = 1
+                and A.FCorrent = 1
+                and A.FSaleStyle <> '2'
+           group by A.FBillNo
+             having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                and UNIX_TIMESTAMP(maxDate) < base.end_time
+            ) as B   
+   group by B.data_val;
+ 
+ set errno=1050;
+ 
+ 
+ update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'disposal-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val;
+
+set errno=1051;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+     select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+            B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val2) as val1
+       from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                    base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                    sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                    sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                    sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                    sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'service-cost' as group1,
+                            'transport-cost' as group2
+                    ) as base,
+                    Trans_main_table as A
+              where A.FCancellation = 1
+                and A.FCorrent = 1
+                and A.FSaleStyle <> '2'
+           group by A.FBillNo
+             having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                and UNIX_TIMESTAMP(maxDate) < base.end_time
+            ) as B   
+   group by B.data_val;
+ 
+set errno=1052;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'transport-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val;
+
+set errno=1053;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+     select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+            B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val3) as val1
+       from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                    base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                    sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                    sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                    sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                    sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+               from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                            UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                            TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                            'M' as time_dims, 
+                            '客户' as data_dims,
+                            'customer-monthly-report' as stat_code,
+                            'service-cost' as group1,
+                            'consumables-cost' as group2
+                    ) as base,
+                    Trans_main_table as A
+              where A.FCancellation = 1
+                and A.FCorrent = 1
+                and A.FSaleStyle <> '2'
+           group by A.FBillNo
+             having UNIX_TIMESTAMP(maxDate) > base.begin_time
+                and UNIX_TIMESTAMP(maxDate) < base.end_time
+            ) as B   
+   group by B.data_val;
+ 
+set errno=1054;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'consumables-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val;
+
+set errno=1055;
+
+
+insert into lh_dw.data_statistics_results (time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, txt1, val1) 
+    select B.time_dims,B.time_val,FROM_UNIXTIME(B.begin_time) as begin_time, FROM_UNIXTIME(B.end_time) as end_time,
+           B.data_dims,B.data_val,B.stat_code,B.group1,B.group2,null as txt1,SUM(B.val4) as val1
+      from (select base.time_dims,base.data_dims,base.stat_code,base.group1,base.group2,base.time_val,
+                   base.begin_time,base.end_time,A.FBillNo, A.FSupplyID as data_val,
+                           MAX(CASE A."FTranType" WHEN 'SOR' THEN A."FDate"
+                                                  WHEN 'SEL' THEN A."FDate"
+                                                  ELSE '1970-01-01 00:00:00'
+                                                  END) AS maxDate,
+                   sum(case A.FTranType when 'PUR' then A.TalThird else '0' end) as val1,
+                   sum(case A.FTranType when 'PUR' then A.TalSecond else '0' end) as val2,
+                   sum(case A.FTranType when 'SOR' then A.TalSecond else '0' end) as val3,
+                   sum(case A.FTranType when 'SOR' then A.TalThird else '0' end) as val4
+              from (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                           UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                           TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                           'M' as time_dims, 
+                           '客户' as data_dims,
+                           'customer-monthly-report' as stat_code,
+                           'service-cost' as group1,
+                           'sorting-cost' as group2
+                   ) as base,
+                   Trans_main_table as A
+             where A.FCancellation = 1
+               and A.FCorrent = 1
+               and A.FSaleStyle <> '2'
+          group by A.FBillNo
+            having UNIX_TIMESTAMP(maxDate) > base.begin_time
+               and UNIX_TIMESTAMP(maxDate) < base.end_time
+           ) as B   
+  group by B.data_val;
+
+set errno=1056;
+
+
+update 
+     lh_dw.data_statistics_results as main,
+                  (select A.data_val,A.data_dims,A.time_val,A.time_dims,A.stat_code,A.group1,A.group2,A.val1 as m1, (if(B.val1 > 0,B.val1,0)) as m2,
+                          (if(B.val1 > 0,round((A.val1 - B.val1),3),0)) as val2
+                     from (select res.data_val,base.data_dims,base.time_val,base.time_val2,
+                                  base.time_dims,base.stat_code,base.group1,base.group2,res.val1         
+                             from lh_dw.data_statistics_results as res,
+                                  (select UNIX_TIMESTAMP(TO_CHAR(DATE_SUB(v_new_day, INTERVAL 1 MONTH), '%Y-%m-01 00:00:00')) as begin_time,
+                                          UNIX_TIMESTAMP(TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m-%d 23:59:59')) as end_time,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 1 MONTH)), '%Y-%m') as time_val,
+                                          TO_CHAR(LAST_DAY(DATE_SUB(v_new_day, INTERVAL 2 MONTH)), '%Y-%m') as time_val2,
+                                          'M' as time_dims, 
+                                          '客户' as data_dims,
+                                          'customer-monthly-report' as stat_code,
+                                          'service-cost' as group1,
+                                          'sorting-cost' as group2
+                                  ) as base
+                            where res.time_val = base.time_val  
+                              and res.stat_code = base.stat_code
+                              and res.group2 = base.group2
+                              and res.data_dims = base.data_dims
+                         group by res.data_val
+                           ) as A
+                left join lh_dw.data_statistics_results as B
+                       on A.data_val = B.data_val
+                      and B.time_val = A.time_val2
+                      and B.stat_code= A.stat_code
+                      and B.group2 = A.group2
+                      and B.data_dims = A.data_dims 
+                      and B.data_val = A.data_val
+                      group by A.data_val
+                 ) as cal
+    set main.val2 = cal.val2      
+  where main.time_val = cal.time_val
+    and main.stat_code= cal.stat_code
+    and main.group2 = cal.group2
+    and main.data_dims = cal.data_dims 
+    and main.data_val = cal.data_val;
+
+set errno=1057;
+
+
+ 
+ 
+ 
+
+        COMMIT;
+
+        -- 设置成功的消息
+        IF  errno = 1057 THEN
+            io_rv := 200;
+            io_err := '月报表数据生成成功.';
+        END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- 如果出现异常，回滚事务
+            ROLLBACK;
+
+            -- 获取异常的消息
+            io_err := SQLERRM;
+    END;
+END;
+$$;
+
+
+
+
+
+-- 删除存储过程 "lh_dw_operating_check_to_execute"，如果存在的话
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."lh_dw_operating_check_to_execute";
+
+-- 创建存储过程 "lh_dw_operating_check_to_execute"
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."lh_dw_operating_check_to_execute"() 
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_id int;
+    v_pre_tasks varchar(100);
+    v_exec_way varchar(20);
+    v_exec_alg varchar(10000);
+    v_err_logs varchar(200);
+    o_rv int;
+    o_err varchar(100);
+    v_exec_state int;
+    sqlUp varchar(800);
+    sqlStr varchar(800);
+    v_sql varchar(800);
+    v_sql_str varchar(800);
+    statu varchar(20);
+    v_filed varchar(20);
+    v_status int;
+    v_res_exec_state int;
+    v_res_err_logs varchar(200);
+    errno int;
+    v_exec_code varchar(300);
+    v_count_num int;
+    v_log_type varchar(30);
+    v_res_exec_type varchar(30);
+    s int DEFAULT 0;
+
+    -- 声明游标
+    report CURSOR FOR
+        SELECT id, pre_tasks, exec_way, exec_alg, err_logs, exec_state, code
+        FROM lh_dw.data_statistics_execution
+        WHERE EXTRACT(EPOCH FROM exec_time) <= EXTRACT(EPOCH FROM NOW()) 
+          AND exec_way = 'sql'
+          AND code LIKE 'oper-m-%'
+          AND exec_state IN (0, 2);
+BEGIN
+    -- 打开游标
+    OPEN report;
+
+    -- 循环处理游标结果集
+    LOOP
+        -- 从游标中获取数据
+        FETCH report INTO
+            v_id, v_pre_tasks, v_exec_way, v_exec_alg, v_err_logs, v_exec_state, v_exec_code;
+
+        -- 退出循环条件
+        EXIT WHEN NOT FOUND;
+
+        WHILE s <> 1 LOOP
+            v_exec_alg := trim(v_exec_alg);
+            v_id := trim(v_id); 
+
+            SELECT count(*) INTO v_count_num FROM lh_dw.data_statistics_execution_log WHERE exec_id = v_id;
+            
+            IF v_count_num > 0 THEN
+                SELECT COALESCE(exec_type, 'waiting') INTO v_log_type 
+                FROM lh_dw.data_statistics_execution_log 
+                WHERE exec_id = v_id 
+                ORDER BY create_at DESC 
+                LIMIT 1;
+            END IF;
+
+            IF v_count_num = 0 OR v_log_type = 'failed' THEN
+                INSERT INTO lh_dw.data_statistics_execution_log (exec_id, exec_code, exec_type)
+                VALUES (v_id, v_exec_code, 'waiting');
+            END IF;
+
+            IF v_count_num = 0 OR v_log_type IN ('waiting', 'failed') THEN
+                IF v_pre_tasks = '' OR v_pre_tasks IS NULL THEN
+                    UPDATE lh_dw.data_statistics_execution_log  
+                    SET exec_type = 'operation' 
+                    WHERE exec_id = v_id AND finish_at IS NULL;
+
+                    o_rv := '0';
+                    o_err := '';
+                    CALL lh_dw_table_data_execution(v_id, v_exec_alg, o_rv, o_err);
+                    
+                    IF o_rv = 200 THEN
+                        v_res_exec_state := 1;
+                        v_res_err_logs := '';
+                        v_res_exec_type := 'finish';
+                    END IF;
+                    
+                    IF o_rv = 400 THEN
+                        v_res_exec_state := 2;
+                        v_res_err_logs := o_err;
+                        v_res_exec_type := 'failed';
+                    END IF;
+                    
+                    UPDATE lh_dw.data_statistics_execution  
+                    SET exec_state = v_res_exec_state, err_logs = v_res_err_logs 
+                    WHERE id = v_id;
+                    
+                    UPDATE lh_dw.data_statistics_execution_log  
+                    SET exec_type = v_res_exec_type, finish_at = NOW() 
+                    WHERE exec_id = v_id AND finish_at IS NULL;
+                ELSE
+                    SELECT EXP(SUM(LN(CASE WHEN exec_state = 1 THEN 1 ELSE 2 END))) INTO v_status 
+                    FROM lh_dw.data_statistics_execution 
+                    WHERE id IN (SELECT unnest(string_to_array(v_pre_tasks, ','))::int);
+                    
+                    IF v_status = 1 THEN
+                        UPDATE lh_dw.data_statistics_execution_log  
+                        SET exec_type = 'operation' 
+                        WHERE exec_id = v_id AND finish_at IS NULL;
+
+                        o_rv := '0';
+                        o_err := '';
+                        CALL lh_dw_table_data_execution(v_id, v_exec_alg, o_rv, o_err);
+
+                        IF o_rv = 200 THEN
+                            v_res_exec_state := 1;
+                            v_res_err_logs := '';
+                            v_res_exec_type := 'finish';
+                        END IF;
+
+                        IF o_rv = 400 THEN
+                            v_res_exec_state := 2;
+                            v_res_err_logs := o_err;
+                            v_res_exec_type := 'failed';
+                        END IF;
+                        
+                        UPDATE lh_dw.data_statistics_execution  
+                        SET exec_state = v_res_exec_state, err_logs = v_res_err_logs 
+                        WHERE id = v_id;
+                        
+                        UPDATE lh_dw.data_statistics_execution_log  
+                        SET exec_type = v_res_exec_type, finish_at = NOW() 
+                        WHERE exec_id = v_id AND finish_at IS NULL;
+                    END IF;
+                END IF;
+            END IF;
+        END LOOP;
+    END LOOP;
+
+    -- 关闭游标
+    CLOSE report;
+END;
+$$;
+
+
+
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."lh_dw_table_check_to_execute";
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."lh_dw_table_check_to_execute"() 
+LANGUAGE plpgsql AS $$
+BEGIN
+    DECLARE v_id              int;
+    DECLARE v_pre_tasks       varchar(100);
+    DECLARE v_exec_way        varchar(20);
+    DECLARE v_exec_alg        varchar(10000);
+    DECLARE v_err_logs        varchar(200);
+    DECLARE o_rv              int;
+    DECLARE o_err             varchar(100);
+    DECLARE v_exec_state      int;
+    DECLARE sqlUp             varchar(800);
+    DECLARE sqlStr            varchar(800);
+    DECLARE v_sql             varchar(800);
+    DECLARE v_sql_str         varchar(800);
+    DECLARE statu             varchar(20);
+    DECLARE v_filed           varchar(20);
+    DECLARE v_status          int;
+    DECLARE v_res_exec_state int;
+    DECLARE v_res_err_logs   varchar(200);
+    DECLARE errno             int;
+    DECLARE v_exec_code      varchar(300);
+    DECLARE v_count_num      int;
+    DECLARE v_log_type       varchar(30);
+    DECLARE v_res_exec_type  varchar(30);
+
+    DECLARE s int DEFAULT 0;
+
+    DECLARE report CURSOR FOR 
+        SELECT id, pre_tasks, exec_way, exec_alg, err_logs, exec_state, code 
+        FROM lh_dw.data_statistics_execution 
+        WHERE UNIX_TIMESTAMP(exec_time) <= UNIX_TIMESTAMP(now()) 
+            AND exec_way = 'sql' 
+            AND code LIKE 'cust-m-%' 
+            AND exec_state IN (0, 2);
+
+    BEGIN
+        OPEN report;
+
+        LOOP
+            FETCH report INTO v_id, v_pre_tasks, v_exec_way, v_exec_alg, v_err_logs, v_exec_state, v_exec_code;
+            EXIT WHEN NOT FOUND;
+
+            v_exec_alg = TRIM(v_exec_alg);
+            v_id = TRIM(v_id);
+
+            SELECT COUNT(*) INTO v_count_num FROM lh_dw.data_statistics_execution_log WHERE exec_id = v_id;
+
+            IF v_count_num > 0 THEN
+                SELECT COALESCE(exec_type, 'waiting') INTO v_log_type 
+                FROM lh_dw.data_statistics_execution_log 
+                WHERE exec_id = v_id 
+                ORDER BY create_at DESC 
+                LIMIT 1;
+            END IF;
+
+            IF v_count_num = 0 OR v_log_type = 'failed' THEN
+                INSERT INTO lh_dw.data_statistics_execution_log (exec_id, exec_code, exec_type)
+                VALUES (v_id, v_exec_code, 'waiting');
+            END IF;
+
+            IF v_count_num = 0 OR (v_log_type = 'waiting' OR v_log_type = 'failed') THEN
+                IF v_pre_tasks = '' OR v_pre_tasks = ' ' OR v_pre_tasks IS NULL THEN
+                    UPDATE lh_dw.data_statistics_execution_log  
+                    SET exec_type = 'operation' 
+                    WHERE exec_id = v_id AND finish_at IS NULL;
+
+                    SET o_rv = 0;
+                    SET o_err = '';
+                    CALL lh_dw_table_data_execution(v_id, v_exec_alg, o_rv, o_err);
+                    SELECT o_rv, o_err;
+                    
+                    IF o_rv = 200 THEN
+                        v_res_exec_state = 1;
+                        v_res_err_logs = '';
+                        v_res_exec_type = 'finish';
+                    END IF;
+                    
+                    IF o_rv = 400 THEN
+                        v_res_exec_state = 2;
+                        v_res_err_logs = o_err;
+                        v_res_exec_type = 'failed';
+                    END IF;
+
+                    UPDATE lh_dw.data_statistics_execution  
+                    SET exec_state = v_res_exec_state, err_logs = v_res_err_logs 
+                    WHERE id = v_id;
+                     
+                    UPDATE lh_dw.data_statistics_execution_log  
+                    SET exec_type = v_res_exec_type, finish_at = now() 
+                    WHERE exec_id = v_id AND finish_at IS NULL;
+                ELSE
+                    SELECT EXP(SUM(LN(CASE WHEN exec_state = 1 THEN 1 ELSE 2 END))) INTO v_status 
+                    FROM lh_dw.data_statistics_execution 
+                    WHERE id IN (SELECT unnest(string_to_array(v_pre_tasks, ',')));
+
+                    IF v_status = 1 THEN
+                        UPDATE lh_dw.data_statistics_execution_log  
+                        SET exec_type = 'operation' 
+                        WHERE exec_id = v_id AND finish_at IS NULL;
+
+                        SET o_rv = 0;
+                        SET o_err = '';
+                        CALL lh_dw_table_data_execution(v_id, v_exec_alg, o_rv, o_err);
+                        SELECT o_rv, o_err;
+                        
+                        IF o_rv = 200 THEN
+                            v_res_exec_state = 1;
+                            v_res_err_logs = '';
+                            v_res_exec_type = 'finish';
+                        END IF;
+                        
+                        IF o_rv = 400 THEN
+                            v_res_exec_state = 2;
+                            v_res_err_logs = o_err;
+                            v_res_exec_type = 'failed';
+                        END IF;
+
+                        UPDATE lh_dw.data_statistics_execution  
+                        SET exec_state = v_res_exec_state, err_logs = v_res_err_logs 
+                        WHERE id = v_id;
+                        
+                        UPDATE lh_dw.data_statistics_execution_log  
+                        SET exec_type = v_res_exec_type, finish_at = now() 
+                        WHERE exec_id = v_id AND finish_at IS NULL;
+                    END IF;
+                END IF;
+            END IF;
+        END LOOP;
+        
+        CLOSE report;
+    END;
+END;
+$$;
+
+
+
+
+-- 删除已存在的存储过程
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."lh_dw_table_data_execution";
+
+-- 创建存储过程
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."lh_dw_table_data_execution"(in p_id integer, in p_content varchar(10000), INOUT o_rv integer, INOUT o_err varchar(200)) 
+LANGUAGE plpgsql AS $$
+DECLARE 
+    errno int;
+BEGIN
+    BEGIN
+        -- 设置初始错误代码和错误消息
+        o_rv := 400;
+        o_err := '存储过程运行失败';
+
+        -- 尝试执行动态 SQL
+        EXECUTE p_content;
+
+        -- 如果执行成功，设置成功状态和消息
+        o_rv := 200;
+        o_err := '执行成功.';
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- 捕获异常并设置错误状态和消息
+            o_rv := 400;
+            o_err := SQLERRM;
+    END;
+END;
+$$;
+
+
+
+
+DROP PROCEDURE IF EXISTS "uctoo_lvhuan"."sorting-daily-report";
+
+CREATE OR REPLACE PROCEDURE "uctoo_lvhuan"."sorting-daily-report"() 
+LANGUAGE plpgsql AS $$
+DECLARE
+    _test_date DATE := '2020-01-01';
+    rank INT := 0;
+
+BEGIN
+    START TRANSACTION;
+
+    WHILE _test_date < CURRENT_DATE LOOP
+	
+insert into lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,group1,val1,val2,val3) select 'D' as time_dims, DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '角色' as data_dims, a.id as data_val, 'sorting-daily-report' as stat_code , 'weight' as group1 ,  round(sum(COALESCE(at.FQty,0)),2) as val1, round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0) as val2, COALESCE(round((round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0))/COALESCE(r.val1,0),2),0)*100 as val3 from Trans_assist_table at join Trans_main_table mt on mt.FInterID = at.FinterID and mt.FTranType = at.FTranType and mt.FCancellation = '1' and mt.FSaleStyle = '0' and mt.FTranType = 'SOR' and date_format(at.FDCTime, '%Y-%m-%d') = DATE_SUB(_test_date,INTERVAL 1 DAY)
+right join lh_dw.data_statistics_results as r on  r.data_val = mt.FEmpID  right join uct_admin a on cast(a.id as char) = r.data_val and   r.time_dims = 'D' and r.time_val = from_unixtime(UNIX_TIMESTAMP(_test_date)-60*60*48,'%Y-%m-%d') and r.data_dims = '角色' and r.stat_code = 'sorting-daily-report' and r.group1 = 'weight' join uct_auth_group_access ga on ga.uid = a.id and ga.group_id = 42  group by a.id;	
+	
+	
+	
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2, val3, val4)
+        SELECT rows.*, rank + 1
+        FROM (
+            SELECT 'D' as time_dims, DATE_SUB(_test_date, INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY) AS DATETIME) as begin_time, CAST(CAST(_test_date AS DATE) AS DATETIME) as end_time, '角色' as data_dims, a.id as data_val, 'sorting-daily-report' as stat_code, 'weight-by-waste-structure' as group1, 'RW' as group2, ROUND(SUM(COALESCE(at.FQty, 0)), 2) as val1, ROUND(SUM(COALESCE(at.FQty, 0)), 2) - COALESCE(r.val1, 0) as val2, COALESCE(ROUND((ROUND(SUM(COALESCE(at.FQty, 0)), 2) - COALESCE(r.val1, 0)) / COALESCE(r.val1, 0), 2), 0) * 100 as val3
+            FROM Trans_assist_table at
+            JOIN Trans_main_table mt ON mt.FInterID = at.FinterID AND mt.FTranType = at.FTranType AND mt.FCancellation = '1' AND mt.FSaleStyle = '0' AND mt.FTranType = 'SOR' AND DATE_FORMAT(at.FDCTime, '%Y-%m-%d') = DATE_SUB(_test_date, INTERVAL 1 DAY)
+            RIGHT JOIN lh_dw.data_statistics_results AS r ON r.data_val = mt.FEmpID AND at.value_type = 'valuable'
+            RIGHT JOIN uct_admin a ON CAST(a.id AS CHAR) = r.data_val AND r.time_dims = 'D' AND r.time_val = FROM_UNIXTIME(UNIX_TIMESTAMP(_test_date) - 60 * 60 * 48, '%Y-%m-%d') AND r.data_dims = '角色' AND r.stat_code = 'sorting-daily-report' AND r.group1 = 'weight-by-waste-structure' AND r.group2 = 'RW'
+            JOIN uct_auth_group_access ga ON ga.uid = a.id AND ga.group_id = 42
+            GROUP BY a.id
+            ORDER BY ROUND(SUM(COALESCE(at.FQty, 0)), 2) DESC
+        ) AS rows;
+
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2, val3, val4)
+        SELECT rows.*, rank + 1
+        FROM (
+            SELECT 'D' as time_dims, DATE_SUB(_test_date, INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '角色' as data_dims, a.id as data_val , 'sorting-daily-report' as stat_code, 'weight-by-waste-structure' as group1, 'LW' as group2,  round(sum(COALESCE(at.FQty,0)),2) as val1, round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0) as val2, COALESCE(round((round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0))/COALESCE(r.val1,0),2),0)*100 as val3
+            FROM Trans_assist_table at 
+            JOIN Trans_main_table mt ON mt.FInterID = at.FinterID AND mt.FTranType = at.FTranType AND mt.FCancellation = '1' AND mt.FSaleStyle = '0' AND mt.FTranType = 'SOR' AND date_format(at.FDCTime, '%Y-%m-%d') = DATE_SUB(_test_date,INTERVAL 1 DAY)
+            RIGHT JOIN lh_dw.data_statistics_results as r ON  r.data_val = mt.FEmpID AND at.value_type = 'unvaluable' 
+            RIGHT JOIN uct_admin a ON cast(a.id as char) = r.data_val AND r.time_dims = 'D' AND r.time_val = from_unixtime(UNIX_TIMESTAMP(_test_date)-60*60*48,'%Y-%m-%d') AND r.data_dims = '角色' AND r.stat_code = 'sorting-daily-report' AND r.group1 = 'weight-by-waste-structure' AND r.group2 = 'LW' 
+            JOIN uct_auth_group_access ga ON ga.uid = a.id AND ga.group_id = 42  
+            GROUP BY a.id  
+            ORDER BY round(sum(COALESCE(at.FQty,0)),2)  desc
+        ) as rows;
+		
+
+INSERT INTO lh_dw.data_statistics_results(time_dims, time_val, begin_time, end_time, data_dims, data_val, stat_code, group1, group2, val1, val2, val3, val4)
+SELECT rows.*, rank + 1
+FROM (
+    SELECT 'D' as time_dims, DATE_SUB(_test_date, INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '角色' as data_dims, a.id as data_val , 'sorting-daily-report' as stat_code , 'weight-by-waste-sorting' as group1, 'sorting' as group2, round(sum(COALESCE(at.FQty,0)),2) as val1, round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0) as val2, COALESCE(round((round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0))/COALESCE(r.val1,0),2),0)*100 as val3
+    FROM Trans_assist_table at 
+    JOIN Trans_main_table mt ON mt.FInterID = at.FinterID AND mt.FTranType = at.FTranType AND mt.FCancellation = '1' AND mt.FSaleStyle = '0' AND mt.FTranType = 'SOR' AND date_format(at.FDCTime, '%Y-%m-%d') = DATE_SUB(_test_date,INTERVAL 1 DAY)
+    RIGHT JOIN lh_dw.data_statistics_results as r ON  r.data_val = mt.FEmpID AND at.disposal_way = 'sorting' 
+    RIGHT JOIN uct_admin a ON cast(a.id as char) = r.data_val AND   r.time_dims = 'D' AND r.time_val = from_unixtime(UNIX_TIMESTAMP(_test_date)-60*60*48,'%Y-%m-%d') AND r.data_dims = '角色' AND r.stat_code = 'sorting-daily-report' AND r.group1 = 'weight-by-waste-sorting' AND r.group2 = 'sorting' 
+    JOIN uct_auth_group_access ga ON ga.uid = a.id AND ga.group_id = 42  
+    GROUP BY a.id  
+    ORDER BY round(sum(COALESCE(at.FQty,0)),2)  DESC
+) as rows;
+
+
+
+        INSERT INTO lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,group1,group2,val1,val2,val3,val4)  
+        SELECT 
+            'D' as time_dims, 
+            DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, 
+            CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, 
+            CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, 
+            '角色' as data_dims, 
+            a.id as data_val, 
+            'sorting-daily-report' as stat_code, 
+            'weight-by-waste-sorting' as group1, 
+            'weigh' as group2, 
+            round(sum(COALESCE(at.FQty,0)),2) as val1, 
+            round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0) as val2, 
+            COALESCE(round((round(sum(COALESCE(at.FQty,0)),2) - COALESCE(r.val1,0))/COALESCE(r.val1,0),2),0)*100 as val3 
+        FROM Trans_assist_table at 
+        JOIN Trans_main_table mt ON mt.FInterID = at.FinterID AND mt.FTranType = at.FTranType AND mt.FCancellation = '1' 
+                                    AND mt.FSaleStyle = '0' AND mt.FTranType = 'SOR' 
+                                    AND date_format(at.FDCTime, '%Y-%m-%d') = DATE_SUB(_test_date,INTERVAL 1 DAY)
+        RIGHT JOIN lh_dw.data_statistics_results AS r ON r.data_val = mt.FEmpID AND at.disposal_way = 'weighing'  
+        RIGHT JOIN uct_admin a ON CAST(a.id AS CHAR) = r.data_val 
+        JOIN uct_auth_group_access ga ON ga.uid = a.id AND ga.group_id = 42  
+        WHERE r.time_dims = 'D' AND r.time_val = from_unixtime(UNIX_TIMESTAMP(_test_date)-60*60*48,'%Y-%m-%d') 
+            AND r.data_dims = '角色' AND r.stat_code = 'sorting-daily-report' AND r.group1 = 'weight-by-waste-sorting' AND r.group2 = 'weigh'
+        GROUP BY a.id  
+        ORDER BY round(sum(COALESCE(at.FQty,0)),2) DESC;
+		
+
+
+insert into lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,group1,val1,val2,val3) select 'D' as time_dims, DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '角色' as data_dims, a.id as data_val , 'sorting-daily-report' as stat_code , 'commission' as group1,  round(sum(COALESCE(mt.TalForth,0)),2) as val1 , round(sum(COALESCE(mt.TalForth,0)),2) - COALESCE(r.val1,0) as val2 ,  COALESCE(round((sum(COALESCE(mt.TalForth,0)) - COALESCE(r.val1,0)) / COALESCE(r.val1,0),2),0)*100 as val3 from  Trans_main_table mt  right join lh_dw.data_statistics_results as r on  r.data_val = mt.FEmpID and mt.FCancellation = '1' and mt.FCorrent = '1' and mt.FSaleStyle = '0' and mt.FTranType = 'SOR' and mt.Date = DATE_SUB(_test_date,INTERVAL 1 DAY) right join uct_admin a on cast(a.id as char) = r.data_val and   r.time_dims = 'D' and r.time_val = from_unixtime(UNIX_TIMESTAMP(_test_date)-60*60*48,'%Y-%m-%d') and r.data_dims = '角色' and r.stat_code = 'sorting-daily-report' and  r.group1 = 'commission' join uct_auth_group_access ga on ga.uid = a.id and ga.group_id = 42  group by a.id;  
+
+
+insert into lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,group1,val1,val2) select 'D' as time_dims, DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '角色' as data_dims , d1.admin_id as data_val, 'sorting-daily-report' as stat_code , 'order-count' as group1 , d1.num as val1, d2.num as val2 from 
+(select a.id as admin_id, count(lt.FInterID) as num from  Trans_main_table mt join Trans_log_table lt on mt.FInterID = lt.FInterID and lt.TsortOver = '1' and lt.FTranType = 'PUR'  and mt.FCancellation = '1'  and mt.FSaleStyle = '0' and mt.FTranType = 'SOR' and from_unixtime(lt.Tsort, '%Y-%m-%d') = DATE_SUB(_test_date,INTERVAL 1 DAY) right join uct_admin a on a.id = mt.FEmpID  join uct_auth_group_access ga on ga.uid = a.id and ga.group_id = 42  group by a.id) as d1  
+join 
+(select a.id as admin_id, count(lt.FInterID) as num from  Trans_main_table mt join Trans_log_table lt on mt.FInterID = lt.FInterID and lt.TsortOver != '1' and lt.FTranType = 'PUR'  and mt.FCancellation = '1'  and mt.FSaleStyle = '0' and mt.FTranType = 'SOR'  right join uct_admin a on a.id = mt.FEmpID  join uct_auth_group_access ga on ga.uid = a.id and ga.group_id = 42  group by a.id) as d2 
+on d1.admin_id = d2.admin_id; 
+
+
+insert into lh_dw.data_statistics_results(time_dims,time_val,begin_time,end_time,data_dims,data_val,stat_code,group1,group2,val1,val2) 
+select 'D' as time_dims, DATE_SUB(_test_date,INTERVAL 1 DAY) as time_val, CAST((CAST(_test_date AS DATE) - INTERVAL 1 DAY)AS DATETIME) as begin_time, CAST(CAST(_test_date AS DATE)AS DATETIME) as end_time, '角色' as data_dims, a.id as data_val , 'sorting-daily-report' as stat_code , 'order-detail-list' as group1 , mt.FBillNo as group2,  sum(if(at.value_type='valuable',at.FQty,0)) as val1, sum(if(at.value_type='unvaluable',at.FQty,0)) val2 from  Trans_assist_table at join Trans_main_table mt on mt.FInterID = at.FinterID and mt.FTranType = at.FTranType and mt.FCancellation = '1' and mt.FSaleStyle = '0' and mt.FTranType = 'SOR' and date_format(at.FDCTime, '%Y-%m-%d') = DATE_SUB(_test_date,INTERVAL 1 DAY)  join uct_admin a on a.id = mt.FEmpID  join uct_waste_customer c on  c.id = mt.FSupplyID  group by mt.FinterID; 
+
+
+
+        rank := rank + 1;
+        _test_date := _test_date + INTERVAL '1 day';
+    END LOOP;
+
+    COMMIT;
+END;
+$$;
 
