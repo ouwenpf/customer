@@ -356,44 +356,8 @@ ERROR 1149 (42000): invalid input syntax for integer: "" at character: 1091
 
 
 
-DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_finishcount`;
 
-CREATE VIEW `uctoo_lvhuan`.`trans_finishcount` AS
-SELECT
-    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
-    `uctoo_lvhuan`.`trans_main_table`.`FDeptID` AS `FDeptID`,
-    `uctoo_lvhuan`.`trans_main_table`.`FEmpID` AS `FEmpID`,
-    (SUM(`uctoo_lvhuan`.`trans_main_table`.`FCancellation`) - SUM(`uctoo_lvhuan`.`trans_main_table`.`FCorrent`)) AS `Unfinished`
-FROM
-    `uctoo_lvhuan`.`trans_main_table`
-WHERE
-    (
-        DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') >= DATE_FORMAT('2019-01-01', '%Y-%m-%d')
-        AND `uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'PUR'
-    )
-GROUP BY
-    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
-    `uctoo_lvhuan`.`trans_main_table`.`FDeptID`,
-    `uctoo_lvhuan`.`trans_main_table`.`FEmpID`
 
-UNION ALL
-
-SELECT
-    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
-    '3' AS `FDeptID`,
-    '-' AS `FEmpID`,
-    (SUM(`uctoo_lvhuan`.`trans_main_table`.`FCancellation`) - SUM(`uctoo_lvhuan`.`trans_main_table`.`FUpStockWhenSave`)) AS `Unfinished`
-FROM
-    `uctoo_lvhuan`.`trans_main_table`
-WHERE
-    (
-        `uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SOR'
-        AND `uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1
-    )
-GROUP BY
-    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`;
-
-ERROR 1149 (42000): invalid input syntax for integer: "-" at character: 818
 
 
 

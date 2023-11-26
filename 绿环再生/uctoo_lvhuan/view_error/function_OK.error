@@ -1,0 +1,115 @@
+
+
+
+
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`view_customer`;
+
+CREATE VIEW `uctoo_lvhuan`.`view_customer` AS
+SELECT
+    `uctoo_lvhuan`.`uct_admin`.`nickname` AS `第一负责人`,
+    `uctoo_lvhuan`.`uct_admin`.`mobile` AS `第一负责人电话`,
+    `bb`.`分部归属` AS `分部归属`,
+    `bb`.`公司名称` AS `公司名称`,
+    `bb`.`业务员` AS `业务员`,
+    `bb`.`部门归属` AS `部门归属`
+FROM
+    (
+        SELECT
+            SUBSTRING_INDEX(`uctoo_lvhuan`.`uct_waste_customer`.`admin_id`, ',', -(1)) AS `admin_id1`,
+            (
+                CASE `uctoo_lvhuan`.`uct_waste_customer`.`branch_id`
+                    WHEN 1 THEN '深圳宝安分部'
+                    WHEN 2 THEN '成都崇州分部'
+                    WHEN 3 THEN '昆山张浦分部'
+                    WHEN 4 THEN '厦门翔安分部'
+                    WHEN 5 THEN '东莞黄江分部'
+                    WHEN 8 THEN '东莞横沥分部'
+                    WHEN 9 THEN '东莞大岭山分部'
+                    WHEN 10 THEN '东莞凤岗分部'
+                    ELSE ''
+                END
+            ) AS `分部归属`,
+            `uctoo_lvhuan`.`uct_waste_customer`.`name` AS `公司名称`,
+            `uctoo_lvhuan`.`uct_admin`.`nickname` AS `业务员`,
+            (
+                CASE `uctoo_lvhuan`.`uct_waste_customer`.`service_department`
+                    WHEN '1' THEN '客服部'
+                    WHEN '2' THEN '企服部'
+                END
+            ) AS `部门归属`
+        FROM
+            `uctoo_lvhuan`.`uct_waste_customer`
+        JOIN
+            `uctoo_lvhuan`.`uct_admin`
+        ON
+            (`uctoo_lvhuan`.`uct_waste_customer`.`manager_id` = `uctoo_lvhuan`.`uct_admin`.`id`)
+        WHERE
+            (`uctoo_lvhuan`.`uct_waste_customer`.`customer_type` = 'up' AND `uctoo_lvhuan`.`uct_waste_customer`.`state` = 'enabled')
+    ) AS `bb`
+JOIN
+    `uctoo_lvhuan`.`uct_admin`
+ON
+    (`bb`.`admin_id1` = `uctoo_lvhuan`.`uct_admin`.`id`);
+
+
+
+ERROR 1305 (42000): function substring_index(character varying, unknown, integer) does not existHINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+ at character: 253
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`accoding_stock`;
+
+CREATE VIEW `uctoo_lvhuan`.`accoding_stock` AS
+SELECT
+    `stoc`.`FRelateBrID` AS `FRelateBrID`,
+    `stoc`.`FStockID` AS `FStockID`,
+    `stoc`.`FItemID` AS `FItemID`,
+    `stoc`.`name` AS `name`,
+    IF(
+        (IFNULL(UNIX_TIMESTAMP(`stodif`.`FdifTime`), '0') > UNIX_TIMESTAMP(SYSDATE())),
+        (
+            (
+                (IFNULL(`stodif`.`FdifQty`, 0) - IFNULL(SUM(`stoiod`.`FDCQty`), 0)) +
+                IFNULL(SUM(`stoiod`.`FSCQty`), 0)
+            ) + IFNULL(SUM(`stoiod`.`FdifQty`), 0)
+        ),
+        (
+            (IFNULL(`stodif`.`FdifQty`, 0) + IFNULL(SUM(`stoiod`.`FDCQty`), 0)) -
+            IFNULL(SUM(`stoiod`.`FSCQty`), 0)
+        )
+    ) AS `FQty`,
+    IFNULL(`stodif`.`FdifTime`, 0) AS `Fdiftime`
+FROM
+    (
+        (`uctoo_lvhuan`.`accoding_stock_cate` `stoc`
+        LEFT JOIN `uctoo_lvhuan`.`accoding_stock_dif` `stodif`
+        ON (
+            (`stoc`.`FStockID` = `stodif`.`FStockID`)
+            AND (`stoc`.`FItemID` = `stodif`.`FItemID`)
+        ))
+        LEFT JOIN `uctoo_lvhuan`.`accoding_stock_iod` `stoiod`
+        ON (
+            (CONVERT(`stoc`.`FStockID` USING utf8) = `stoiod`.`FStockID`)
+            AND (`stoc`.`FItemID` = `stoiod`.`FItemID`)
+            AND (
+                IF(
+                    (IFNULL(UNIX_TIMESTAMP(`stodif`.`FdifTime`), '0') > UNIX_TIMESTAMP(SYSDATE())),
+                    (UNIX_TIMESTAMP(`stoiod`.`FDCTime`) BETWEEN (UNIX_TIMESTAMP(SYSDATE()) + 1) AND IFNULL(UNIX_TIMESTAMP(`stodif`.`FdifTime`), '0')),
+                    (UNIX_TIMESTAMP(`stoiod`.`FDCTime`) BETWEEN IFNULL((UNIX_TIMESTAMP(`stodif`.`FdifTime`) + 1), '0') AND UNIX_TIMESTAMP(SYSDATE()))
+                )
+            )
+        )
+    )
+GROUP BY `stoc`.`FStockID`, `stoc`.`FItemID`;
+
+
+ERROR 1105 (HY000): function sysdate() is not uniqueHINT:  Could not choose a best candidate function. You might need to add explicit type casts.
+ at character: 996
+
+
+
+

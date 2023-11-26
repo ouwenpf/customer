@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION substring_index(varchar, varchar, integer)
+CREATE  FUNCTION pg_catalog.substring_index(varchar, varchar, integer)
 RETURNS varchar AS $$
 DECLARE
 tokens varchar[];
@@ -16,19 +16,9 @@ END IF;
 END;
 $$ IMMUTABLE STRICT LANGUAGE PLPGSQL;
 
-CREATE OR REPLACE FUNCTION sysdate() RETURNS timestamp AS 
-$$ 
-BEGIN
-    RETURN current_timestamp;
-END;
-$$ 
-LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION pg_catalog.sysdate() RETURNS timestamp AS $$ select timeofday()::timestamp(0) ; $$ LANGUAGE sql VOLATILE PARALLEL SAFE;
 
 
-
-CREATE OR REPLACE FUNCTION pg_catalog.text_numeric_gt (text, numeric) RETURNS bool AS 'select $1 > $2::text' LANGUAGE sql IMMUTABLE STRICT PARALLEL safe;
+CREATE  FUNCTION pg_catalog.text_numeric_gt (text, numeric) RETURNS bool AS 'select $1 > $2::text' LANGUAGE sql IMMUTABLE STRICT PARALLEL safe;
 CREATE  OPERATOR pg_catalog.>     (LEFTARG = text, RIGHTARG = numeric, PROCEDURE = text_numeric_gt, COMMUTATOR = '<=' );
 
 

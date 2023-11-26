@@ -345,7 +345,7 @@ ORDER BY
     `change_info`.`订单号`,
     `change_info`.`通过时间`;
 
-ERROR 1149 (42000): invalid input syntax for type double precision: "" at character: 1865
+ERROR 1146 (42S02): missing FROM-clause entry for table "bra" at character: 4364
 
 
 
@@ -1061,59 +1061,4 @@ ERROR 1149 (42000): invalid input syntax for type double precision: "" at charac
 
 
 
-DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_total_fee`;
 
-CREATE VIEW `uctoo_lvhuan`.`trans_total_fee` AS
-SELECT
-    `basep`.`id` AS `FInterID`,
-    'PUR' AS `FTranType`,
-    IFNULL(`pf`.`customer_profit`, '') AS `CustomerProfit`,
-    IFNULL(`pf`.`other_profit`, '') AS `OtherProfit`,
-    IFNULL(`pf`.`pick_fee`, '') AS `PickFee`,
-    IFNULL(`rf`.`car_fee`, '') AS `CarFee`,
-    IFNULL(`rf`.`man_fee`, '') AS `ManFee`,
-    IFNULL(`rf`.`other_return_fee`, '') AS `OtherReturnfee`,
-    IFNULL(`sg`.`sort_fee`, '') AS `SortFee`,
-    ROUND((IFNULL(`sg`.`materiel_fee`, '') + IFNULL(`basep`.`materiel_price`, '')), 2) AS `MaterielFee`,
-    IFNULL(`sg`.`other_sort_fee`, '') AS `OtherSortfee`,
-    IFNULL(`sf`.`sell_profit`, '') AS `SellProfit`,
-    IFNULL(`sf`.`sell_fee`, '') AS `SellFee`
-FROM
-    (
-        (
-            (
-                (
-                    (
-                        `uctoo_lvhuan`.`uct_waste_purchase` `basep`
-                        LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_rf` `rf`
-                        ON (`basep`.`id` = `rf`.`purchase_id`)
-                    )
-                    LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_sg` `sg`
-                    ON (`basep`.`id` = `sg`.`purchase_id`)
-                )
-                LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_pf` `pf`
-                ON (`basep`.`id` = `pf`.`purchase_id`)
-            )
-            LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_sf` `sf`
-            ON (`basep`.`id` = `sf`.`purchase_id`)
-        )
-    )
-UNION ALL
-SELECT
-    `osf`.`sell_id` AS `FInterID`,
-    'SEL' AS `FTranType`,
-    '' AS `CustomerProfit`,
-    '' AS `OtherProfit`,
-    '' AS `PickFee`,
-    '' AS `CarFee`,
-    '' AS `ManFee`,
-    '' AS `OtherReturnfee`,
-    '' AS `SortFee`,
-    '' AS `MaterielFee`,
-    '' AS `OtherSortfee`,
-    IFNULL(`osf`.`sell_profit`, '') AS `SellProfit`,
-    IFNULL(`osf`.`sell_fee`, '') AS `SellFee`
-FROM
-    `uctoo_lvhuan`.`trans_total_fee_osf` `osf`;
-
-ERROR 1149 (42000): invalid input syntax for type double precision: "" at character: 149

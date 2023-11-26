@@ -1,0 +1,216 @@
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`test_17`;
+
+CREATE VIEW `uctoo_lvhuan`.`test_17` AS
+SELECT
+    `main`.`Date` AS `Date`,
+    `cus`.`name` AS `cusName`,
+    CONCAT('\'', `main`.`FBillNo`) AS `FBillNo`,
+    `cate`.`name` AS `cateName`,
+    `ass`.`FQty` AS `FQty`,
+    `ass`.`FPrice` AS `FPrice`,
+    `ass`.`FAmount` AS `FAmount`,
+    '' AS `Amount`,
+    `ad`.`nickname` AS `nickname`
+FROM
+    (
+        (
+            (
+                (
+                    `uctoo_lvhuan`.`trans_main_table` `main`
+                    JOIN `uctoo_lvhuan`.`trans_assist_table` `ass`
+                )
+                JOIN `uctoo_lvhuan`.`uct_waste_customer` `cus`
+            )
+            JOIN `uctoo_lvhuan`.`uct_waste_cate` `cate`
+        )
+        JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+    )
+WHERE
+    (
+        (`main`.`FInterID` = `ass`.`FinterID`)
+        AND (`main`.`FTranType` = `ass`.`FTranType`)
+        AND (`main`.`FTranType` = 'PUR')
+        AND (`main`.`FSupplyID` = `cus`.`id`)
+        AND (`cus`.`name` = '广东盈兴智能科技有限公司')
+        AND (`ass`.`FItemID` = `cate`.`id`)
+        AND (`main`.`FEmpID` = `ad`.`id`)
+        AND (`main`.`FCancellation` = 1)
+        AND (`ass`.`is_hedge` = 0)
+    )
+UNION ALL
+SELECT
+    `main`.`Date` AS `Date`,
+    `cus`.`name` AS `cusName`,
+    CONCAT('\'', `main`.`FBillNo`) AS `FBillNo`,
+    `fee`.`FFeeID` AS `cateName`,
+    '' AS `FQty`,
+    '' AS `FPrice`,
+    -(`fee`.`FFeeAmount`) AS `FAmount`,
+    '' AS `Amount`,
+    `ad`.`nickname` AS `nickname`
+FROM
+    (
+        (
+            `uctoo_lvhuan`.`trans_main_table` `main`
+            JOIN `uctoo_lvhuan`.`trans_fee_table` `fee`
+        )
+        JOIN `uctoo_lvhuan`.`uct_waste_customer` `cus`
+    )
+    JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+WHERE
+    (
+        (`main`.`FInterID` = `fee`.`FInterID`)
+        AND (`main`.`FTranType` = `fee`.`FTranType`)
+        AND (`main`.`FTranType` = 'PUR')
+        AND (`fee`.`Ffeesence` = 'PC')
+        AND (`main`.`FSupplyID` = `cus`.`id`)
+        AND (`cus`.`name` = '广东盈兴智能科技有限公司')
+        AND (`main`.`FEmpID` = `ad`.`id`)
+        AND (`main`.`FCancellation` = 1)
+        AND (`fee`.`is_hedge` = 0)
+    );
+
+
+ERROR 1149 (42000): invalid input syntax for type real: "" at character: 990
+
+
+
+
+
+
+
+
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_daily_sel`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_daily_sel` AS
+SELECT
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    GROUP_CONCAT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FItemID` SEPARATOR ',') AS `FItemID`,
+    ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FQty`), 1) AS `total_weight`,
+    ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FAmount`), 2) AS `total_price`,
+    COUNT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FinterID`) AS `count_order`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') AS `FDate`
+FROM
+    (`uctoo_lvhuan`.`trans_main_table`
+    JOIN `uctoo_lvhuan`.`trans_assist_table`)
+WHERE
+    ((`uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SEL')
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FInterID` = `uctoo_lvhuan`.`trans_assist_table`.`FinterID`)
+    AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') > 0)
+    AND (`uctoo_lvhuan`.`trans_assist_table`.`FTranType` = 'SEL')
+    AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') = CURDATE())
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1))
+GROUP BY
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d');
+
+ERROR 1149 (42000): syntax error at or near "distinct" at character: 118
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_month_sel`;
+
+CREATE VIEW `uctoo_lvhuan`.`trans_month_sel` AS
+SELECT
+    `monsel`.`FRelateBrID` AS `FRelateBrID`,
+    `monsel`.`FItemID` AS `FItemID`,
+    `monsel`.`total_weight` AS `total_weight`,
+    `monsel`.`total_price` AS `total_price`,
+    `monsel`.`count_order` AS `count_order`,
+    `monsel`.`FDate` AS `FDate`
+FROM
+    (SELECT
+        `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+        GROUP_CONCAT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FItemID` SEPARATOR ',') AS `FItemID`,
+        ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FQty`), 1) AS `total_weight`,
+        ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FAmount`), 2) AS `total_price`,
+        COUNT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FinterID`) AS `count_order`,
+        DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') AS `FDate`
+    FROM
+        (`uctoo_lvhuan`.`trans_main_table`
+        JOIN `uctoo_lvhuan`.`trans_assist_table`)
+    WHERE
+        ((`uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SEL')
+        AND (`uctoo_lvhuan`.`trans_main_table`.`FInterID` = `uctoo_lvhuan`.`trans_assist_table`.`FinterID`)
+        AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') > 0)
+        AND (`uctoo_lvhuan`.`trans_assist_table`.`FTranType` = 'SEL')
+        AND (`uctoo_lvhuan`.`trans_main_table`.`FStatus` = 1)
+        AND (`uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1))
+    GROUP BY
+        `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+        DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d')) `monsel`
+WHERE
+    (NOT (`monsel`.`FDate` IN (SELECT `uctoo_lvhuan`.`trans_month_sel_table`.`FDate` FROM `uctoo_lvhuan`.`trans_month_sel_table`)));
+
+
+ERROR 1149 (42000): syntax error at or near "distinct" at character: 353
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

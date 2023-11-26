@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION substring_index(varchar, varchar, integer)
+CREATE  FUNCTION pg_catalog.substring_index(varchar, varchar, integer)
 RETURNS varchar AS $$
 DECLARE
 tokens varchar[];
@@ -18,17 +18,9 @@ $$ IMMUTABLE STRICT LANGUAGE PLPGSQL;
 
 
 
-CREATE OR REPLACE FUNCTION sysdate() RETURNS timestamp AS 
-$$ 
-BEGIN
-    RETURN current_timestamp;
-END;
-$$ 
-LANGUAGE plpgsql;
+CREATE  FUNCTION pg_catalog.text_numeric_gt (text, numeric) RETURNS bool AS 'select $1 > $2::text' LANGUAGE sql IMMUTABLE STRICT PARALLEL safe;
+CREATE  OPERATOR pg_catalog.>     (LEFTARG = text, RIGHTARG = numeric, PROCEDURE = text_numeric_gt, COMMUTATOR = '<=' );
 
-
-
-CREATE OR REPLACE FUNCTION pg_catalog.sysdate() RETURNS timestamp AS $$ select timeofday()::timestamp(0) ; $$ LANGUAGE sql VOLATILE PARALLEL SAFE;
 
 
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`accoding_all_materiel`;
@@ -997,121 +989,163 @@ ORDER BY "change_info"."订单号", "change_info"."通过时间";
 
 
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`test_17`;
-CREATE  VIEW `uctoo_lvhuan`.`test_17` AS 
-SELECT 
-    main."Date" AS "Date",
-    cus."name" AS "cusName",
-    '''' || main."FBillNo" AS "FBillNo",
-    cate."name" AS "cateName",
-    ass."FQty" AS "FQty",
-    ass."FPrice" AS "FPrice",
-    ass."FAmount" AS "FAmount",
-    NULL AS "Amount",
-    ad."nickname" AS "nickname" 
-FROM 
-    ((((uctoo_lvhuan.trans_main_table main 
-    JOIN uctoo_lvhuan.trans_assist_table ass ON main."FInterID" = ass."FinterID" AND main."FTranType" = ass."FTranType" AND ass."is_hedge" = 0) 
-    JOIN uctoo_lvhuan.uct_waste_customer cus ON main."FSupplyID" = cus."id" AND cus."name" = '广东盈兴智能科技有限公司') 
-    JOIN uctoo_lvhuan.uct_waste_cate cate ON ass."FItemID" = cate."id") 
-    JOIN uctoo_lvhuan.uct_admin ad ON main."FEmpID" = ad."id") 
-WHERE 
-    main."FTranType" = 'PUR' AND main."FCancellation" = 1 
-UNION ALL 
-SELECT 
-    main."Date" AS "Date",
-    cus."name" AS "cusName",
-    '''' || main."FBillNo" AS "FBillNo",
-    fee."FFeeID" AS "cateName",
-    NULL AS "FQty",
-    NULL AS "FPrice",
-    -fee."FFeeAmount" AS "FAmount",
-    NULL AS "Amount",
-    ad."nickname" AS "nickname" 
-FROM 
-    (((uctoo_lvhuan.trans_main_table main 
-    JOIN uctoo_lvhuan.trans_fee_table fee ON main."FInterID" = fee."FInterID" AND main."FTranType" = fee."FTranType" AND fee."is_hedge" = 0 AND fee."Ffeesence" = 'PC') 
-    JOIN uctoo_lvhuan.uct_waste_customer cus ON main."FSupplyID" = cus."id" AND cus."name" = '广东盈兴智能科技有限公司') 
-    JOIN uctoo_lvhuan.uct_admin ad ON main."FEmpID" = ad."id") 
-WHERE 
-    main."FTranType" = 'PUR' AND main."FCancellation" = 1;
+CREATE VIEW `uctoo_lvhuan`.`test_17` AS
+SELECT
+    `main`.`Date` AS `Date`,
+    `cus`.`name` AS `cusName`,
+    CONCAT(E'\'', main.FBillNo, E'\'') AS FBillNo,
+    `cate`.`name` AS `cateName`,
+    `ass`.`FQty` AS `FQty`,
+    `ass`.`FPrice` AS `FPrice`,
+    `ass`.`FAmount` AS `FAmount`,
+    '' AS `Amount`,
+    `ad`.`nickname` AS `nickname`
+FROM
+    (
+        (
+            (
+                (
+                    `uctoo_lvhuan`.`trans_main_table` `main`
+                    JOIN `uctoo_lvhuan`.`trans_assist_table` `ass`
+                )
+                JOIN `uctoo_lvhuan`.`uct_waste_customer` `cus`
+            )
+            JOIN `uctoo_lvhuan`.`uct_waste_cate` `cate`
+        )
+        JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+    )
+WHERE
+    (
+        (`main`.`FInterID` = `ass`.`FinterID`)
+        AND (`main`.`FTranType` = `ass`.`FTranType`)
+        AND (`main`.`FTranType` = 'PUR')
+        AND (`main`.`FSupplyID` = `cus`.`id`)
+        AND (`cus`.`name` = '广东盈兴智能科技有限公司')
+        AND (`ass`.`FItemID` = `cate`.`id`)
+        AND (`main`.`FEmpID` = `ad`.`id`)
+        AND (`main`.`FCancellation` = 1)
+        AND (`ass`.`is_hedge` = 0)
+    )
+UNION ALL
+SELECT
+    `main`.`Date` AS `Date`,
+    `cus`.`name` AS `cusName`,
+    CONCAT(E'\'', main.FBillNo, E'\'') AS FBillNo,
+    `fee`.`FFeeID` AS `cateName`,
+    '' AS `FQty`,
+    '' AS `FPrice`,
+    -(`fee`.`FFeeAmount`) AS `FAmount`,
+    '' AS `Amount`,
+    `ad`.`nickname` AS `nickname`
+FROM
+    (
+        (
+            `uctoo_lvhuan`.`trans_main_table` `main`
+            JOIN `uctoo_lvhuan`.`trans_fee_table` `fee`
+        )
+        JOIN `uctoo_lvhuan`.`uct_waste_customer` `cus`
+    )
+    JOIN `uctoo_lvhuan`.`uct_admin` `ad`
+WHERE
+    (
+        (`main`.`FInterID` = `fee`.`FInterID`)
+        AND (`main`.`FTranType` = `fee`.`FTranType`)
+        AND (`main`.`FTranType` = 'PUR')
+        AND (`fee`.`Ffeesence` = 'PC')
+        AND (`main`.`FSupplyID` = `cus`.`id`)
+        AND (`cus`.`name` = '广东盈兴智能科技有限公司')
+        AND (`main`.`FEmpID` = `ad`.`id`)
+        AND (`main`.`FCancellation` = 1)
+        AND (`fee`.`is_hedge` = 0)
+    );
+
+
 
 
 
 
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`test_4`;
-CREATE  VIEW `uctoo_lvhuan`.`test_4` AS 
-SELECT 
-    cus.branch_id AS branch_id,
-    cus.company_name AS company_name,
-    cus.liasion AS liasion,
-    item.shipment_ask AS shipment_ask,
-    item.shipment_answer AS shipment_answer,
-    item.staff_cooperate AS staff_cooperate,
-    item.civilized_operation AS civilized_operation,
-    item.customer_stipulate AS customer_stipulate,
-    item.now_settle AS now_settle,
-    item.settle_accuracy AS settle_accuracy,
-    item.handle_rationality AS handle_rationality,
-    item.receipts_timeliness AS receipts_timeliness,
-    item.report_accuracy AS report_accuracy,
-    item.communicate_smooth AS communicate_smooth,
-    item.complaint_timeliness AS complaint_timeliness,
-    item.verify_track AS verify_track,
-    item.regular_visits AS regular_visits,
-    item.report_to_duty AS report_to_duty,
-    item.working_attitude AS working_attitude,
-    item.packaging_work AS packaging_work,
-    item.shipshape AS shipshape,
-    item.qualifications_update AS qualifications_update,
-    item.assess_support AS assess_support,
-    item.emergency_container AS emergency_container,
-    item.environmental_consultation AS environmental_consultation,
-    gra.item1 AS item1,
-    gra.item2 AS item2,
-    gra.item3 AS item3,
-    gra.item4 AS item4,
-    gra.item5 AS item5,
-    gra.item6 AS item6,
-    gra.item7 AS item7,
-    gra.csi AS csi,
-    item.extend_service AS extend_service,
-    item.propose AS propose
-FROM 
-    ((uctoo_lvhuan.uct_customer_question_item item 
-    JOIN uctoo_lvhuan.uct_customer_question cus ON item.question_id = cus.id AND cus.branch_id <> 7 AND cus.branch_id <> 0) 
-    JOIN uctoo_lvhuan.uct_customer_question_grade gra ON gra.question_id = cus.id)
-GROUP BY cus.branch_id, cus.company_name, cus.liasion, item.shipment_ask, item.shipment_answer, item.staff_cooperate, 
-         item.civilized_operation, item.customer_stipulate, item.now_settle, item.settle_accuracy, item.handle_rationality,
-         item.receipts_timeliness, item.report_accuracy, item.communicate_smooth, item.complaint_timeliness, item.verify_track,
-         item.regular_visits, item.report_to_duty, item.working_attitude, item.packaging_work, item.shipshape, 
-         item.qualifications_update, item.assess_support, item.emergency_container, item.environmental_consultation, 
-         gra.item1, gra.item2, gra.item3, gra.item4, gra.item5, gra.item6, gra.item7, gra.csi, item.extend_service, item.propose;
+CREATE VIEW `uctoo_lvhuan`.`test_4` AS
+SELECT
+    `cus`.`branch_id` AS `branch_id`,
+    `cus`.`company_name` AS `company_name`,
+    `cus`.`liasion` AS `liasion`,
+    `item`.`shipment_ask` AS `shipment_ask`,
+    `item`.`shipment_answer` AS `shipment_answer`,
+    `item`.`staff_cooperate` AS `staff_cooperate`,
+    `item`.`civilized_operation` AS `civilized_operation`,
+    `item`.`customer_stipulate` AS `customer_stipulate`,
+    `item`.`now_settle` AS `now_settle`,
+    `item`.`settle_accuracy` AS `settle_accuracy`,
+    `item`.`handle_rationality` AS `handle_rationality`,
+    `item`.`receipts_timeliness` AS `receipts_timeliness`,
+    `item`.`report_accuracy` AS `report_accuracy`,
+    `item`.`communicate_smooth` AS `communicate_smooth`,
+    `item`.`complaint_timeliness` AS `complaint_timeliness`,
+    `item`.`verify_track` AS `verify_track`,
+    `item`.`regular_visits` AS `regular_visits`,
+    `item`.`report_to_duty` AS `report_to_duty`,
+    `item`.`working_attitude` AS `working_attitude`,
+    `item`.`packaging_work` AS `packaging_work`,
+    `item`.`shipshape` AS `shipshape`,
+    `item`.`qualifications_update` AS `qualifications_update`,
+    `item`.`assess_support` AS `assess_support`,
+    `item`.`emergency_container` AS `emergency_container`,
+    `item`.`environmental_consultation` AS `environmental_consultation`,
+    `gra`.`item1` AS `item1`,
+    `gra`.`item2` AS `item2`,
+    `gra`.`item3` AS `item3`,
+    `gra`.`item4` AS `item4`,
+    `gra`.`item5` AS `item5`,
+    `gra`.`item6` AS `item6`,
+    `gra`.`item7` AS `item7`,
+    `gra`.`csi` AS `csi`,
+    `item`.`extend_service` AS `extend_service`,
+    `item`.`propose` AS `propose`
+FROM
+    (
+        (
+            `uctoo_lvhuan`.`uct_customer_question_item` `item`
+            JOIN `uctoo_lvhuan`.`uct_customer_question` `cus`
+            ON (`item`.`question_id` = `cus`.`id`)
+        )
+        JOIN `uctoo_lvhuan`.`uct_customer_question_grade` `gra`
+        ON (`gra`.`question_id` = `cus`.`id`)
+    )
+WHERE
+    (
+        (`cus`.`branch_id` <> 7)
+        AND (`cus`.`branch_id` <> 0)
+    )
+GROUP BY
+    `cus`.`phone`;
+
 
 
 
 
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_daily_sel`;
-CREATE  VIEW `uctoo_lvhuan`.`trans_daily_sel` AS 
-SELECT 
-    "uctoo_lvhuan"."trans_main_table"."FRelateBrID" AS "FRelateBrID",
-    string_agg(DISTINCT "uctoo_lvhuan"."trans_assist_table"."FItemID", ',') AS "FItemID",
-    round(sum("uctoo_lvhuan"."trans_assist_table"."FQty"), 1) AS "total_weight",
-    round(sum("uctoo_lvhuan"."trans_assist_table"."FAmount"), 2) AS "total_price",
-    count(DISTINCT "uctoo_lvhuan"."trans_assist_table"."FinterID") AS "count_order",
-    date("uctoo_lvhuan"."trans_main_table"."FDate") AS "FDate"
-FROM 
-    "uctoo_lvhuan"."trans_main_table" 
-JOIN 
-    "uctoo_lvhuan"."trans_assist_table" 
-ON 
-    "uctoo_lvhuan"."trans_main_table"."FInterID" = "uctoo_lvhuan"."trans_assist_table"."FinterID"
-WHERE 
-    "uctoo_lvhuan"."trans_main_table"."FTranType" = 'SEL' 
-    AND "uctoo_lvhuan"."trans_main_table"."FDate"::date = CURRENT_DATE 
-    AND "uctoo_lvhuan"."trans_assist_table"."FTranType" = 'SEL' 
-    AND "uctoo_lvhuan"."trans_main_table"."FCancellation" = 1
-GROUP BY 
-    "uctoo_lvhuan"."trans_main_table"."FRelateBrID", date("uctoo_lvhuan"."trans_main_table"."FDate");
+CREATE VIEW `uctoo_lvhuan`.`trans_daily_sel` AS
+SELECT
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    GROUP_CONCAT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FItemID` SEPARATOR ',') AS `FItemID`,
+    ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FQty`), 1) AS `total_weight`,
+    ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FAmount`), 2) AS `total_price`,
+    COUNT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FinterID`) AS `count_order`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') AS `FDate`
+FROM
+    (`uctoo_lvhuan`.`trans_main_table`
+    JOIN `uctoo_lvhuan`.`trans_assist_table`)
+WHERE
+    ((`uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SEL')
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FInterID` = `uctoo_lvhuan`.`trans_assist_table`.`FinterID`)
+    AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') > 0)
+    AND (`uctoo_lvhuan`.`trans_assist_table`.`FTranType` = 'SEL')
+    AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') = CURDATE())
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1))
+GROUP BY
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d');
 
 
 
@@ -1221,32 +1255,31 @@ ON
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_daily_wh_profit`;
 CREATE VIEW `uctoo_lvhuan`.`trans_daily_wh_profit` AS
 SELECT
-    "uctoo_lvhuan"."trans_main_table"."FRelateBrID" AS "FRelateBrID",
-    "uctoo_lvhuan"."trans_fee_table"."FFeeID" AS "FFeeID",
-    "uctoo_lvhuan"."trans_fee_table"."FFeeType" AS "FFeeType",
-    "uctoo_lvhuan"."trans_fee_table"."FFeePerson" AS "FFeePerson",
-    SUM("uctoo_lvhuan"."trans_fee_table"."FFeeAmount") AS "FFeeAmount",
-    "uctoo_lvhuan"."trans_fee_table"."FFeebaseAmount" COLLATE "default" AS "FFeebaseAmount",
-    "uctoo_lvhuan"."trans_fee_table"."Ftaxrate" COLLATE "default" AS "Ftaxrate",
-    "uctoo_lvhuan"."trans_fee_table"."Fbasetax" COLLATE "default" AS "Fbasetax",
-    "uctoo_lvhuan"."trans_fee_table"."Fbasetaxamount" COLLATE "default" AS "Fbasetaxamount",
-    "uctoo_lvhuan"."trans_fee_table"."FPriceRef" COLLATE "default" AS "FPriceRef",
-    DATE_FORMAT("uctoo_lvhuan"."trans_fee_table"."FFeetime", '%Y-%m-%d') AS "FFeetime"
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeeID` AS `FFeeID`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeeType` AS `FFeeType`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeePerson` AS `FFeePerson`,
+    SUM(`uctoo_lvhuan`.`trans_fee_table`.`FFeeAmount`) AS `FFeeAmount`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeebaseAmount` AS `FFeebaseAmount`,
+    `uctoo_lvhuan`.`trans_fee_table`.`Ftaxrate` AS `Ftaxrate`,
+    `uctoo_lvhuan`.`trans_fee_table`.`Fbasetax` AS `Fbasetax`,
+    `uctoo_lvhuan`.`trans_fee_table`.`Fbasetaxamount` AS `Fbasetaxamount`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FPriceRef` AS `FPriceRef`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_fee_table`.`FFeetime`, '%Y-%m-%d') AS `FFeetime`
 FROM
-    "uctoo_lvhuan"."trans_fee_table"
-JOIN
-    "uctoo_lvhuan"."trans_main_table"
-ON
-    "uctoo_lvhuan"."trans_fee_table"."FInterID" = "uctoo_lvhuan"."trans_main_table"."FInterID"
+    (`uctoo_lvhuan`.`trans_fee_table`
+    JOIN `uctoo_lvhuan`.`trans_main_table`)
 WHERE
-    ("uctoo_lvhuan"."trans_fee_table"."FFeeID" = '资源池分拣人工')
-    AND ("uctoo_lvhuan"."trans_main_table"."FTranType" = 'SOR')
-    AND (DATE_FORMAT("uctoo_lvhuan"."trans_fee_table"."FFeetime", '%Y-%m-%d') = CURRENT_DATE)
-    AND ("uctoo_lvhuan"."trans_main_table"."FCancellation" = 1)
+    ((`uctoo_lvhuan`.`trans_fee_table`.`FFeeID` = '资源池分拣人工')
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SOR')
+    AND (`uctoo_lvhuan`.`trans_fee_table`.`FInterID` = `uctoo_lvhuan`.`trans_main_table`.`FInterID`)
+    AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_fee_table`.`FFeetime`, '%Y-%m-%d') = CURDATE())
+    AND (`uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1))
 GROUP BY
-    "uctoo_lvhuan"."trans_main_table"."FRelateBrID",
-    "uctoo_lvhuan"."trans_fee_table"."FFeePerson",
-    DATE_FORMAT("uctoo_lvhuan"."trans_fee_table"."FFeetime", '%Y-%m-%d');
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+    `uctoo_lvhuan`.`trans_fee_table`.`FFeePerson`,
+    DATE_FORMAT(`uctoo_lvhuan`.`trans_fee_table`.`FFeetime`, '%Y-%m-%d');
+
 
 
 
@@ -1452,35 +1485,40 @@ WHERE
 
 
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_finishcount`;
-CREATE VIEW `uctoo_lvhuan`.`trans_finishcount` AS 
-SELECT 
-    uctoo_lvhuan.trans_main_table.FRelateBrID AS FRelateBrID,
-    uctoo_lvhuan.trans_main_table.FDeptID AS FDeptID,
-    CASE 
-        WHEN uctoo_lvhuan.trans_main_table.FTranType = 'PUR' THEN uctoo_lvhuan.trans_main_table.FEmpID 
-        ELSE NULL 
-    END AS FEmpID,
-    (SUM(uctoo_lvhuan.trans_main_table.FCancellation) - SUM(uctoo_lvhuan.trans_main_table.FCorrent)) AS Unfinished
-FROM 
-    uctoo_lvhuan.trans_main_table
-WHERE 
-    (DATE(uctoo_lvhuan.trans_main_table.FDate) >= DATE('2019-01-01') AND uctoo_lvhuan.trans_main_table.FTranType = 'PUR')
-GROUP BY 
-    uctoo_lvhuan.trans_main_table.FRelateBrID, uctoo_lvhuan.trans_main_table.FDeptID, uctoo_lvhuan.trans_main_table.FEmpID
+CREATE VIEW `uctoo_lvhuan`.`trans_finishcount` AS
+SELECT
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FDeptID` AS `FDeptID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FEmpID` AS `FEmpID`,
+    (SUM(`uctoo_lvhuan`.`trans_main_table`.`FCancellation`) - SUM(`uctoo_lvhuan`.`trans_main_table`.`FCorrent`)) AS `Unfinished`
+FROM
+    `uctoo_lvhuan`.`trans_main_table`
+WHERE
+    (
+        DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') >= DATE_FORMAT('2019-01-01', '%Y-%m-%d')
+        AND `uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'PUR'
+    )
+GROUP BY
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FDeptID`,
+    `uctoo_lvhuan`.`trans_main_table`.`FEmpID`
 
 UNION ALL
 
-SELECT 
-    uctoo_lvhuan.trans_main_table.FRelateBrID AS FRelateBrID,
-    '3' AS FDeptID,
-    NULL AS FEmpID,
-    (SUM(uctoo_lvhuan.trans_main_table.FCancellation) - SUM(uctoo_lvhuan.trans_main_table.FUpStockWhenSave)) AS Unfinished
-FROM 
-    uctoo_lvhuan.trans_main_table
-WHERE 
-    (uctoo_lvhuan.trans_main_table.FTranType = 'SOR' AND uctoo_lvhuan.trans_main_table.FCancellation = 1)
-GROUP BY 
-    uctoo_lvhuan.trans_main_table.FRelateBrID;
+SELECT
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
+    '3' AS `FDeptID`,
+    '-' AS `FEmpID`,
+    (SUM(`uctoo_lvhuan`.`trans_main_table`.`FCancellation`) - SUM(`uctoo_lvhuan`.`trans_main_table`.`FUpStockWhenSave`)) AS `Unfinished`
+FROM
+    `uctoo_lvhuan`.`trans_main_table`
+WHERE
+    (
+        `uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SOR'
+        AND `uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1
+    )
+GROUP BY
+    `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`;
 
 
 
@@ -1533,34 +1571,36 @@ WHERE
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_month_sel`;    
 CREATE VIEW `uctoo_lvhuan`.`trans_month_sel` AS
 SELECT
-    monsel.FRelateBrID AS FRelateBrID,
-    monsel.FItemID AS FItemID,
-    monsel.total_weight AS total_weight,
-    monsel.total_price AS total_price,
-    monsel.count_order AS count_order,
-    monsel.FDate AS FDate
+    `monsel`.`FRelateBrID` AS `FRelateBrID`,
+    `monsel`.`FItemID` AS `FItemID`,
+    `monsel`.`total_weight` AS `total_weight`,
+    `monsel`.`total_price` AS `total_price`,
+    `monsel`.`count_order` AS `count_order`,
+    `monsel`.`FDate` AS `FDate`
 FROM
     (SELECT
         `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID` AS `FRelateBrID`,
-        GROUP_CONCAT(`uctoo_lvhuan`.`trans_assist_table`.`FItemID` SEPARATOR ',') AS `FItemID`,
+        GROUP_CONCAT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FItemID` SEPARATOR ',') AS `FItemID`,
         ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FQty`), 1) AS `total_weight`,
         ROUND(SUM(`uctoo_lvhuan`.`trans_assist_table`.`FAmount`), 2) AS `total_price`,
         COUNT(DISTINCT `uctoo_lvhuan`.`trans_assist_table`.`FinterID`) AS `count_order`,
         DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') AS `FDate`
     FROM
         (`uctoo_lvhuan`.`trans_main_table`
-    JOIN `uctoo_lvhuan`.`trans_assist_table` ON `uctoo_lvhuan`.`trans_main_table`.`FInterID` = `uctoo_lvhuan`.`trans_assist_table`.`FinterID`)
+        JOIN `uctoo_lvhuan`.`trans_assist_table`)
     WHERE
-        `uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SEL'
-        AND `uctoo_lvhuan`.`trans_main_table`.`FTranType` = `uctoo_lvhuan`.`trans_assist_table`.`FTranType`
-        AND `uctoo_lvhuan`.`trans_main_table`.`FStatus` = 1
-        AND `uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1
+        ((`uctoo_lvhuan`.`trans_main_table`.`FTranType` = 'SEL')
+        AND (`uctoo_lvhuan`.`trans_main_table`.`FInterID` = `uctoo_lvhuan`.`trans_assist_table`.`FinterID`)
+        AND (DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d') > 0)
+        AND (`uctoo_lvhuan`.`trans_assist_table`.`FTranType` = 'SEL')
+        AND (`uctoo_lvhuan`.`trans_main_table`.`FStatus` = 1)
+        AND (`uctoo_lvhuan`.`trans_main_table`.`FCancellation` = 1))
     GROUP BY
         `uctoo_lvhuan`.`trans_main_table`.`FRelateBrID`,
-        DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d')
-    ) monsel
+        DATE_FORMAT(`uctoo_lvhuan`.`trans_main_table`.`FDate`, '%Y-%m-%d')) `monsel`
 WHERE
-    NOT monsel.FDate IN (SELECT DATE_FORMAT(FDate, '%Y-%m-%d') FROM `uctoo_lvhuan`.`trans_month_sel_table`);
+    (NOT (`monsel`.`FDate` IN (SELECT `uctoo_lvhuan`.`trans_month_sel_table`.`FDate` FROM `uctoo_lvhuan`.`trans_month_sel_table`)));
+
 
 
 
@@ -1698,49 +1738,46 @@ GROUP BY FRelateBrID, FBillNo, FDate, FSupplyID, Fbusiness, FDeptID, FEmpID, FPO
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_month_wh_profit`;
 CREATE VIEW `uctoo_lvhuan`.`trans_month_wh_profit` AS
 SELECT
-    whprofit.FRelateBrID AS FRelateBrID,
-    whprofit.FFeeID AS FFeeID,
-    whprofit.FFeeType AS FFeeType,
-    whprofit.FFeePerson AS FFeePerson,
-    whprofit.FFeeAmount AS FFeeAmount,
-    CAST(whprofit.FFeebaseAmount AS VARCHAR) AS FFeebaseAmount,
-    CAST(whprofit.Ftaxrate AS VARCHAR) AS Ftaxrate,
-    CAST(whprofit.Fbasetax AS VARCHAR) AS Fbasetax,
-    CAST(whprofit.Fbasetaxamount AS VARCHAR) AS Fbasetaxamount,
-    CAST(whprofit.FPriceRef AS VARCHAR) AS FPriceRef,
-    TO_CHAR(whprofit.FFeetime::timestamp, 'YYYY-MM-DD') AS FFeetime
+    `whprofit`.`FRelateBrID` AS `FRelateBrID`,
+    `whprofit`.`FFeeID` AS `FFeeID`,
+    `whprofit`.`FFeeType` AS `FFeeType`,
+    `whprofit`.`FFeePerson` AS `FFeePerson`,
+    `whprofit`.`FFeeAmount` AS `FFeeAmount`,
+    `whprofit`.`FFeebaseAmount` AS `FFeebaseAmount`,
+    `whprofit`.`Ftaxrate` AS `Ftaxrate`,
+    `whprofit`.`Fbasetax` AS `Fbasetax`,
+    `whprofit`.`Fbasetaxamount` AS `Fbasetaxamount`,
+    `whprofit`.`FPriceRef` AS `FPriceRef`,
+    `whprofit`.`FFeetime` AS `FFeetime`
 FROM
-    (SELECT
-        trans_main.FRelateBrID AS FRelateBrID,
-        trans_fee.FFeeID AS FFeeID,
-        trans_fee.FFeeType AS FFeeType,
-        trans_fee.FFeePerson AS FFeePerson,
-        SUM(trans_fee.FFeeAmount) AS FFeeAmount,
-        trans_fee.FFeebaseAmount AS FFeebaseAmount,
-        trans_fee.Ftaxrate AS Ftaxrate,
-        trans_fee.Fbasetax AS Fbasetax,
-        SUM(trans_fee.Fbasetaxamount) AS Fbasetaxamount,
-        trans_fee.FPriceRef AS FPriceRef,
-        trans_fee.FFeetime AS FFeetime
-    FROM
-        uctoo_lvhuan.trans_fee
-    JOIN
-        uctoo_lvhuan.trans_main
-    ON
-        trans_fee.FFeeID = '资源池分拣人工'
-        AND trans_main.FTranType = 'SOR'
-        AND trans_fee.FInterID = trans_main.FInterID
-    GROUP BY
-        trans_main.FRelateBrID,
-        trans_fee.FFeePerson,
-        trans_fee.FFeeType,
-        trans_fee.FFeeID,
-        trans_fee.FFeebaseAmount,
-        trans_fee.Ftaxrate,
-        trans_fee.Fbasetax,
-        trans_fee.FPriceRef,
-        trans_fee.FFeetime
-    ) AS whprofit;
+    (
+        SELECT
+            `trans_main`.`FRelateBrID` AS `FRelateBrID`,
+            `trans_fee`.`FFeeID` AS `FFeeID`,
+            `trans_fee`.`FFeeType` AS `FFeeType`,
+            `trans_fee`.`FFeePerson` AS `FFeePerson`,
+            SUM(`trans_fee`.`FFeeAmount`) AS `FFeeAmount`,
+            `trans_fee`.`FFeebaseAmount` AS `FFeebaseAmount`,
+            `trans_fee`.`Ftaxrate` AS `Ftaxrate`,
+            `trans_fee`.`Fbasetax` AS `Fbasetax`,
+            `trans_fee`.`Fbasetaxamount` AS `Fbasetaxamount`,
+            `trans_fee`.`FPriceRef` AS `FPriceRef`,
+            DATE_FORMAT(`trans_fee`.`FFeetime`, '%Y-%m-%d') AS `FFeetime`
+        FROM
+            (`uctoo_lvhuan`.`trans_fee`
+            JOIN `uctoo_lvhuan`.`trans_main`)
+        WHERE
+            ((`trans_fee`.`FFeeID` = '资源池分拣人工')
+            AND (`trans_main`.`FTranType` = 'SOR')
+            AND (`trans_fee`.`FInterID` = `trans_main`.`FInterID`)
+            AND (`trans_main`.`FCorrent` = 1))
+        GROUP BY
+            `trans_main`.`FRelateBrID`,
+            `trans_fee`.`FFeePerson`,
+            DATE_FORMAT(`trans_fee`.`FFeetime`, '%Y-%m-%d')
+    ) `whprofit`
+WHERE
+    (NOT (`whprofit`.`FFeetime` IN (SELECT `uctoo_lvhuan`.`trans_month_wh_profit_table`.`FFeetime` FROM `uctoo_lvhuan`.`trans_month_wh_profit_table`)));
 
 
 
@@ -1857,44 +1894,59 @@ GROUP BY
 
 
 DROP VIEW IF EXISTS `uctoo_lvhuan`.`trans_total_fee`;
-CREATE VIEW `uctoo_lvhuan`.`trans_total_fee` AS 
-SELECT 
-    basep.id AS FInterID,
-    'PUR' AS FTranType,
-    CASE WHEN pf.customer_profit ~ E'^\\s*$' THEN NULL ELSE pf.customer_profit::DOUBLE PRECISION END AS CustomerProfit,
-    CASE WHEN pf.other_profit ~ E'^\\s*$' THEN NULL ELSE pf.other_profit::DOUBLE PRECISION END AS OtherProfit,
-    CASE WHEN pf.pick_fee ~ E'^\\s*$' THEN NULL ELSE pf.pick_fee::DOUBLE PRECISION END AS PickFee,
-    CASE WHEN rf.car_fee ~ E'^\\s*$' THEN NULL ELSE rf.car_fee::DOUBLE PRECISION END AS CarFee,
-    CASE WHEN rf.man_fee ~ E'^\\s*$' THEN NULL ELSE rf.man_fee::DOUBLE PRECISION END AS ManFee,
-    CASE WHEN rf.other_return_fee ~ E'^\\s*$' THEN NULL ELSE rf.other_return_fee::DOUBLE PRECISION END AS OtherReturnfee,
-    CASE WHEN sg.sort_fee ~ E'^\\s*$' THEN NULL ELSE sg.sort_fee::DOUBLE PRECISION END AS SortFee,
-    ROUND(COALESCE(sg.materiel_fee::DOUBLE PRECISION, 0) + COALESCE(basep.materiel_price::DOUBLE PRECISION, 0), 2) AS MaterielFee,
-    CASE WHEN sg.other_sort_fee ~ E'^\\s*$' THEN NULL ELSE sg.other_sort_fee::DOUBLE PRECISION END AS OtherSortfee,
-    CASE WHEN sf.sell_profit ~ E'^\\s*$' THEN NULL ELSE sf.sell_profit::DOUBLE PRECISION END AS SellProfit,
-    CASE WHEN sf.sell_fee ~ E'^\\s*$' THEN NULL ELSE sf.sell_fee::DOUBLE PRECISION END AS SellFee 
-FROM 
-    (((uctoo_lvhuan.uct_waste_purchase basep
-    LEFT JOIN uctoo_lvhuan.trans_total_fee_rf rf ON (basep.id = rf.purchase_id))
-    LEFT JOIN uctoo_lvhuan.trans_total_fee_sg sg ON (basep.id = sg.purchase_id))
-    LEFT JOIN uctoo_lvhuan.trans_total_fee_pf pf ON (basep.id = pf.purchase_id))
-    LEFT JOIN uctoo_lvhuan.trans_total_fee_sf sf ON (basep.id = sf.purchase_id)
-UNION ALL 
-SELECT 
-    osf.sell_id AS FInterID,
-    'SEL' AS FTranType,
-    NULL AS CustomerProfit,
-    NULL AS OtherProfit,
-    NULL AS PickFee,
-    NULL AS CarFee,
-    NULL AS ManFee,
-    NULL AS OtherReturnfee,
-    NULL AS SortFee,
-    NULL AS MaterielFee,
-    NULL AS OtherSortfee,
-    CASE WHEN osf.sell_profit ~ E'^\\s*$' THEN NULL ELSE osf.sell_profit::DOUBLE PRECISION END AS SellProfit,
-    CASE WHEN osf.sell_fee ~ E'^\\s*$' THEN NULL ELSE osf.sell_fee::DOUBLE PRECISION END AS SellFee 
-FROM 
-    uctoo_lvhuan.trans_total_fee_osf osf;
+CREATE VIEW `uctoo_lvhuan`.`trans_total_fee` AS
+SELECT
+    `basep`.`id` AS `FInterID`,
+    'PUR' AS `FTranType`,
+    IFNULL(`pf`.`customer_profit`, '') AS `CustomerProfit`,
+    IFNULL(`pf`.`other_profit`, '') AS `OtherProfit`,
+    IFNULL(`pf`.`pick_fee`, '') AS `PickFee`,
+    IFNULL(`rf`.`car_fee`, '') AS `CarFee`,
+    IFNULL(`rf`.`man_fee`, '') AS `ManFee`,
+    IFNULL(`rf`.`other_return_fee`, '') AS `OtherReturnfee`,
+    IFNULL(`sg`.`sort_fee`, '') AS `SortFee`,
+    ROUND((IFNULL(`sg`.`materiel_fee`, '') + IFNULL(`basep`.`materiel_price`, '')), 2) AS `MaterielFee`,
+    IFNULL(`sg`.`other_sort_fee`, '') AS `OtherSortfee`,
+    IFNULL(`sf`.`sell_profit`, '') AS `SellProfit`,
+    IFNULL(`sf`.`sell_fee`, '') AS `SellFee`
+FROM
+    (
+        (
+            (
+                (
+                    (
+                        `uctoo_lvhuan`.`uct_waste_purchase` `basep`
+                        LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_rf` `rf`
+                        ON (`basep`.`id` = `rf`.`purchase_id`)
+                    )
+                    LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_sg` `sg`
+                    ON (`basep`.`id` = `sg`.`purchase_id`)
+                )
+                LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_pf` `pf`
+                ON (`basep`.`id` = `pf`.`purchase_id`)
+            )
+            LEFT JOIN `uctoo_lvhuan`.`trans_total_fee_sf` `sf`
+            ON (`basep`.`id` = `sf`.`purchase_id`)
+        )
+    )
+UNION ALL
+SELECT
+    `osf`.`sell_id` AS `FInterID`,
+    'SEL' AS `FTranType`,
+    '' AS `CustomerProfit`,
+    '' AS `OtherProfit`,
+    '' AS `PickFee`,
+    '' AS `CarFee`,
+    '' AS `ManFee`,
+    '' AS `OtherReturnfee`,
+    '' AS `SortFee`,
+    '' AS `MaterielFee`,
+    '' AS `OtherSortfee`,
+    IFNULL(`osf`.`sell_profit`, '') AS `SellProfit`,
+    IFNULL(`osf`.`sell_fee`, '') AS `SellFee`
+FROM
+    `uctoo_lvhuan`.`trans_total_fee_osf` `osf`;
+
     
     
     
