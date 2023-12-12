@@ -1122,7 +1122,7 @@ CREATE TABLE gis.adcode (
     dummy boolean,
     longitude double precision,
     latitude double precision,
-    center public.geometry NOT NULL,
+    center public.geometry(geometry,4326) NOT NULL,
     province character varying(64),
     city character varying(64),
     county character varying(64),
@@ -1287,7 +1287,7 @@ COMMENT ON COLUMN gis.adcode.village IS '街道/村';
 CREATE TABLE gis.fences (
     code bigint NOT NULL,
     adcode integer,
-    fence public.geometry NOT NULL
+    fence public.geometry(geometry,4326) NOT NULL
 );
 
 
@@ -2616,7 +2616,7 @@ CREATE TABLE public.facilitys (
     site_id uuid,
     org_id uuid,
     address character varying(255),
-    fence public.geometry,
+    fence public.geometry(geometry,4326),
     location circle,
     owner character varying(255),
     tel character varying(255),
@@ -2996,7 +2996,7 @@ CREATE TABLE public.iot_devices_wip (
     updated_time timestamp(6) without time zone,
     tem_type character varying(32),
     alert_payload json,
-    last_gps_position public.geometry
+    last_gps_position public.geometry(geometry,4326)
 );
 
 
@@ -4085,7 +4085,7 @@ CREATE TABLE public.route_template_detail (
     item_no integer,
     station_id uuid,
     address character varying(255),
-    location public.geometry,
+    location public.geometry(geometry,4326),
     req_arrival_time character varying(255),
     job_use_time integer,
     active character varying(255),
@@ -4892,7 +4892,7 @@ CREATE TABLE public.sites (
     owner character varying(60),
     tel character varying(20),
     adcode bigint,
-    fence public.geometry,
+    fence public.geometry(geometry,4326),
     active boolean,
     tenant_id character varying(32),
     revision character varying(32),
