@@ -1,0 +1,111 @@
+SELECT count(YGXX.RYBM) "人数", SUM((year(getdate())-year(YGXX.CSRQ)))/count(YGXX.RYBM) "平均年龄", YGXX.RYLX "岗位类型", case when YGXX.LZRQ is null then '是'
+else '否'
+end "是否在职", YGXX.RYBM "人员编码", YGXX.XM "姓名", YGXX.XB "性别", YGXX.XL "学历", YGXX.XW "学位", YGXX.GW "岗位", YGXX.GWXL "岗位序列", YGXX.GJ "国籍", YGXX.CSRQ "出生日期", YGXX.PRLX "聘任类型", YGXX.RCJB "人才级别", YGXX.HTKSSJ "合同开始日期", YGXX.HTJSSJ "合同结束日期", YGXX.RZRQ "入职日期", YGXX.LZRQ "离职日期", (year(getdate())-year(YGXX.CSRQ)) "年龄", BDA_AGE_GROUPS.AGE_RANGE "年龄段", year(YGXX.RZRQ)*100+month(YGXX.RZRQ) "入职年月", year(YGXX.LZRQ)*100+month(YGXX.LZRQ) "离职年月", YGXX.UPDATETIME "数据同步时间", isnull((case when YGXX.XW like '%其他%'  or YGXX.XW is null  then YGXX.XL
+else YGXX.XW
+end),'空') "学位学历", case when (year(getdate())-year(YGXX.CSRQ))>28 and YGXX.ZZMM='团员'  then  '群众'
+else YGXX.ZZMM
+END "政治面貌", YGXX.ZZMM "政治面貌-原始", YGXX.HIGHEDUSCHOOL "毕业院校", YGXX.HIGHEDUMAJOR "毕业专业", YGXX.HIGHDEGREESCHOOL "学位毕业院校", YGXX.HIGHDEGREEMAJOR "学位主修专业", YGXX.HIGHDEGREETIME "学位毕业时间"
+FROM "ETL"."YGXX" 
+INNER JOIN "ETL"."BDA_AGE_GROUPS"  ON  (year(getdate())-year(YGXX.CSRQ))  between BDA_AGE_GROUPS.AGE_MIN AND BDA_AGE_GROUPS.AGE_MAX
+
+
+WHERE ((datediff(year,YGXX.RZRQ,getdate())<=3 AND datediff(year,YGXX.RZRQ,getdate())>=2)
+AND (datediff(year,YGXX.RZRQ,getdate())>=5))
+GROUP BY YGXX.RYLX, case when YGXX.LZRQ is null then '是'
+else '否'
+end, YGXX.RYBM, YGXX.XM, YGXX.XB, YGXX.XL, YGXX.XW, YGXX.GW, YGXX.GWXL, YGXX.GJ, YGXX.CSRQ, YGXX.PRLX, YGXX.RCJB, YGXX.HTKSSJ, YGXX.HTJSSJ, YGXX.RZRQ, YGXX.LZRQ, (year(getdate())-year(YGXX.CSRQ)), BDA_AGE_GROUPS.AGE_RANGE, year(YGXX.RZRQ)*100+month(YGXX.RZRQ), year(YGXX.LZRQ)*100+month(YGXX.LZRQ), YGXX.UPDATETIME, isnull((case when YGXX.XW like '%其他%'  or YGXX.XW is null  then YGXX.XL
+else YGXX.XW
+end),'空'), case when (year(getdate())-year(YGXX.CSRQ))>28 and YGXX.ZZMM='团员'  then  '群众'
+else YGXX.ZZMM
+END, YGXX.ZZMM, YGXX.HIGHEDUSCHOOL, YGXX.HIGHEDUMAJOR, YGXX.HIGHDEGREESCHOOL, YGXX.HIGHDEGREEMAJOR, YGXX.HIGHDEGREETIME
+
+
+改写如下:
+
+SELECT 
+    count(YGXX.RYBM) "人数", 
+    SUM((extract(year from current_date)-extract(year from YGXX.CSRQ)))/count(YGXX.RYBM) "平均年龄", 
+    YGXX.RYLX "岗位类型", 
+    CASE 
+        WHEN YGXX.LZRQ IS NULL THEN '是'
+        ELSE '否'
+    END "是否在职", 
+    YGXX.RYBM "人员编码", 
+    YGXX.XM "姓名", 
+    YGXX.XB "性别", 
+    YGXX.XL "学历", 
+    YGXX.XW "学位", 
+    YGXX.GW "岗位", 
+    YGXX.GWXL "岗位序列", 
+    YGXX.GJ "国籍", 
+    YGXX.CSRQ "出生日期", 
+    YGXX.PRLX "聘任类型", 
+    YGXX.RCJB "人才级别", 
+    YGXX.HTKSSJ "合同开始日期", 
+    YGXX.HTJSSJ "合同结束日期", 
+    YGXX.RZRQ "入职日期", 
+    YGXX.LZRQ "离职日期", 
+    (extract(year from current_date)-extract(year from YGXX.CSRQ)) "年龄", 
+    BDA_AGE_GROUPS.AGE_RANGE "年龄段", 
+    extract(year from YGXX.RZRQ)*100+extract(month from YGXX.RZRQ) "入职年月", 
+    extract(year from YGXX.LZRQ)*100+extract(month from YGXX.LZRQ) "离职年月", 
+    YGXX.UPDATETIME "数据同步时间", 
+    coalesce(
+        CASE 
+            WHEN YGXX.XW LIKE '%其他%' OR YGXX.XW IS NULL THEN YGXX.XL
+            ELSE YGXX.XW
+        END, '空') "学位学历", 
+    CASE 
+        WHEN (extract(year from current_date)-extract(year from YGXX.CSRQ)) > 28 AND YGXX.ZZMM = '团员' THEN '群众'
+        ELSE YGXX.ZZMM
+    END "政治面貌", 
+    YGXX.ZZMM "政治面貌-原始", 
+    YGXX.HIGHEDUSCHOOL "毕业院校", 
+    YGXX.HIGHEDUMAJOR "毕业专业", 
+    YGXX.HIGHDEGREESCHOOL "学位毕业院校", 
+    YGXX.HIGHDEGREEMAJOR "学位主修专业", 
+    YGXX.HIGHDEGREETIME "学位毕业时间"
+FROM "ETL"."YGXX" 
+INNER JOIN "ETL"."BDA_AGE_GROUPS" ON (extract(year from current_date)-extract(year from YGXX.CSRQ)) BETWEEN BDA_AGE_GROUPS.AGE_MIN AND BDA_AGE_GROUPS.AGE_MAX
+WHERE (date_part('year', age(YGXX.RZRQ)) <= 3 AND date_part('year', age(YGXX.RZRQ)) >= 2)
+AND (date_part('year', age(YGXX.RZRQ)) >= 5)
+GROUP BY YGXX.RYLX, 
+    CASE 
+        WHEN YGXX.LZRQ IS NULL THEN '是'
+        ELSE '否'
+    END, 
+    YGXX.RYBM, 
+    YGXX.XM, 
+    YGXX.XB, 
+    YGXX.XL, 
+    YGXX.XW, 
+    YGXX.GW, 
+    YGXX.GWXL, 
+    YGXX.GJ, 
+    YGXX.CSRQ, 
+    YGXX.PRLX, 
+    YGXX.RCJB, 
+    YGXX.HTKSSJ, 
+    YGXX.HTJSSJ, 
+    YGXX.RZRQ, 
+    YGXX.LZRQ, 
+    (extract(year from current_date)-extract(year from YGXX.CSRQ)), 
+    BDA_AGE_GROUPS.AGE_RANGE, 
+    extract(year from YGXX.RZRQ)*100+extract(month from YGXX.RZRQ), 
+    extract(year from YGXX.LZRQ)*100+extract(month from YGXX.LZRQ), 
+    YGXX.UPDATETIME, 
+    coalesce(
+        CASE 
+            WHEN YGXX.XW LIKE '%其他%' OR YGXX.XW IS NULL THEN YGXX.XL
+            ELSE YGXX.XW
+        END, '空'), 
+    CASE 
+        WHEN (extract(year from current_date)-extract(year from YGXX.CSRQ)) > 28 AND YGXX.ZZMM = '团员' THEN '群众'
+        ELSE YGXX.ZZMM
+    END, 
+    YGXX.ZZMM, 
+    YGXX.HIGHEDUSCHOOL, 
+    YGXX.HIGHEDUMAJOR, 
+    YGXX.HIGHDEGREESCHOOL, 
+    YGXX.HIGHDEGREEMAJOR, 
+    YGXX.HIGHDEGREETIME

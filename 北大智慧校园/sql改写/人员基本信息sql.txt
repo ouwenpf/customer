@@ -1,0 +1,95 @@
+SELECT YGXX.RYLX "岗位类型", case when YGXX.LZRQ is null then '是'
+else '否'
+end "是否在职", YGXX.RYBM "人员编码", YGXX.XM "姓名", YGXX.XB "性别", YGXX.XW "学位", YGXX.XL "学历", case when BDA_DEPARTMENT.DEPARTMENT_ABBR is null then BDA_DEPARTMENT.DEPARTMENT_NAME
+else BDA_DEPARTMENT.DEPARTMENT_ABBR
+end "部门简称", YGXX.GW "岗位", YGXX.GWXL "岗位序列", YGXX.GJ "国籍", YGXX.CSRQ "出生日期", YGXX.PRLX "聘任类型", YGXX.RCJB "人才级别", YGXX.HTKSSJ "合同开始日期", YGXX.HTJSSJ "合同结束日期", YGXX.RZRQ "入职日期", YGXX.LZRQ "离职日期", EXTRACT(year from CURRENT_DATE)-EXTRACT(year from YGXX.CSRQ) "年龄", BDA_AGE_GROUPS.AGE_RANGE "年龄段", (EXTRACT(year from YGXX.RZRQ))*100+(EXTRACT(month from YGXX.RZRQ)) "入职年月", (EXTRACT(year from YGXX.LZRQ))*100+(EXTRACT(month from YGXX.LZRQ)) "离职年月", YGXX.UPDATETIME "数据同步时间", case when (EXTRACT(year from CURRENT_DATE)-EXTRACT(year from YGXX.CSRQ))>28 and YGXX.ZZMM='团员'  then  '群众'
+else YGXX.ZZMM
+END "政治面貌", YGXX.ZZMM "政治面貌-原始", YGXX.HIGHDEGREESCHOOL "学位毕业院校", YGXX.HIGHDEGREEMAJOR "学位主修专业", YGXX.HIGHDEGREETIME "学位毕业时间", YGXX.HIGHEDUSCHOOL "毕业院校", YGXX.HIGHEDUMAJOR "毕业专业", YGXX.RESIDENTLABLE "籍贯"
+FROM "ETL"."YGXX" 
+LEFT OUTER JOIN "ETL"."BDA_DEPARTMENT"  ON BDA_DEPARTMENT.DEPARTMENT_ID = YGXX.BM
+INNER JOIN "ETL"."BDA_AGE_GROUPS"  ON (EXTRACT(year from CURRENT_DATE)-EXTRACT(year from YGXX.CSRQ))  between BDA_AGE_GROUPS.AGE_MIN AND BDA_AGE_GROUPS.AGE_MAX
+
+
+WHERE (YGXX.RYLX = @PROMPT('岗位类型等于：', [岗位类型], '')
+AND case when YGXX.LZRQ is null then '是'
+else '否'
+end = @PROMPT('是否在职等于：', [是否在职], '')
+AND YGXX.GWXL = @PROMPT('岗位序列等于：', [岗位序列], '')
+AND case when (EXTRACT(year from CURRENT_DATE)-EXTRACT(year from YGXX.CSRQ))>28 and YGXX.ZZMM='团员'  then  '群众'
+else YGXX.ZZMM
+END = @PROMPT('政治面貌等于：', [政治面貌], '')
+AND EXTRACT(year from CURRENT_DATE)-EXTRACT(year from YGXX.CSRQ) < @PROMPT('年龄小于：', [年龄], '')
+AND YGXX.RYBM = @PROMPT('人员编码等于：', [人员编码], '')
+AND YGXX.XM  LIKE  @PROMPT('姓名：', [姓名], '')
+AND case when BDA_DEPARTMENT.DEPARTMENT_ABBR is null then BDA_DEPARTMENT.DEPARTMENT_NAME
+else BDA_DEPARTMENT.DEPARTMENT_ABBR
+end = @PROMPT('部门简称等于：', [部门简称], '')
+AND YGXX.RESIDENTLABLE  LIKE  @PROMPT('籍贯：', [籍贯], ''))
+
+
+
+
+改写如下:
+PostgreSQL 不支持 @PROMPT 函数，这个函数是特定于某些 BI 工具（例如 SAP BusinessObjects）。在 SQL 查询中，你需要替换这些提示符，使用适当的变量或直接值
+
+问题出在SQL语句中使用了 @PROMPT，这是一种用于交互式查询的语法，通常在一些数据库客户端工具中支持，但并不是所有数据库系统原生支持的语法。在大多数数据库系统中，直接使用 @PROMPT 是无法识别的，因此需要使用相应数据库系统支持的变量绑定或者动态参数替代方式来实现这种交互式查询的效果。
+
+通常来说，可以通过应用程序或者特定的数据库客户端工具来实现这种交互式查询，而不是直接在 SQL 查询语句中使用 @PROMPT。如果你正在使用某个特定的数据库客户端工具，建议查阅该工具的文档或者帮助文件，了解如何正确地使用变量绑定或者参数化查询来达到你的交互式查询需求。
+
+
+
+
+SELECT 
+    YGXX.RYLX "岗位类型", 
+    CASE WHEN YGXX.LZRQ IS NULL THEN '是' ELSE '否' END "是否在职", 
+    YGXX.RYBM "人员编码", 
+    YGXX.XM "姓名", 
+    YGXX.XB "性别", 
+    YGXX.XW "学位", 
+    YGXX.XL "学历", 
+    CASE WHEN BDA_DEPARTMENT.DEPARTMENT_ABBR IS NULL THEN BDA_DEPARTMENT.DEPARTMENT_NAME ELSE BDA_DEPARTMENT.DEPARTMENT_ABBR END "部门简称", 
+    YGXX.GW "岗位", 
+    YGXX.GWXL "岗位序列", 
+    YGXX.GJ "国籍", 
+    YGXX.CSRQ "出生日期", 
+    YGXX.PRLX "聘任类型", 
+    YGXX.RCJB "人才级别", 
+    YGXX.HTKSSJ "合同开始日期", 
+    YGXX.HTJSSJ "合同结束日期", 
+    YGXX.RZRQ "入职日期", 
+    YGXX.LZRQ "离职日期", 
+    EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM YGXX.CSRQ) "年龄", 
+    BDA_AGE_GROUPS.AGE_RANGE "年龄段", 
+    (EXTRACT(YEAR FROM YGXX.RZRQ)) * 100 + (EXTRACT(MONTH FROM YGXX.RZRQ)) "入职年月", 
+    (EXTRACT(YEAR FROM YGXX.LZRQ)) * 100 + (EXTRACT(MONTH FROM YGXX.LZRQ)) "离职年月", 
+    YGXX.UPDATETIME "数据同步时间", 
+    CASE 
+        WHEN (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM YGXX.CSRQ)) > 28 AND YGXX.ZZMM = '团员' THEN '群众'
+        ELSE YGXX.ZZMM
+    END "政治面貌", 
+    YGXX.ZZMM "政治面貌-原始", 
+    YGXX.HIGHDEGREESCHOOL "学位毕业院校", 
+    YGXX.HIGHDEGREEMAJOR "学位主修专业", 
+    YGXX.HIGHDEGREETIME "学位毕业时间", 
+    YGXX.HIGHEDUSCHOOL "毕业院校", 
+    YGXX.HIGHEDUMAJOR "毕业专业", 
+    YGXX.RESIDENTLABLE "籍贯"
+FROM 
+    "ETL"."YGXX"
+LEFT OUTER JOIN 
+    "ETL"."BDA_DEPARTMENT" ON BDA_DEPARTMENT.DEPARTMENT_ID = YGXX.BM
+INNER JOIN 
+    "ETL"."BDA_AGE_GROUPS" ON (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM YGXX.CSRQ)) BETWEEN BDA_AGE_GROUPS.AGE_MIN AND BDA_AGE_GROUPS.AGE_MAX
+WHERE 
+    YGXX.RYLX = @PROMPT('岗位类型等于：', [岗位类型], '') AND 
+    CASE WHEN YGXX.LZRQ IS NULL THEN '是' ELSE '否' END = @PROMPT('是否在职等于：', [是否在职], '') AND 
+    YGXX.GWXL = @PROMPT('岗位序列等于：', [岗位序列], '') AND 
+    CASE 
+        WHEN (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM YGXX.CSRQ)) > 28 AND YGXX.ZZMM = '团员' THEN '群众'
+        ELSE YGXX.ZZMM
+    END = @PROMPT('政治面貌等于：', [政治面貌], '') AND 
+    EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM YGXX.CSRQ) < @PROMPT('年龄小于：', [年龄], '') AND 
+    YGXX.RYBM = @PROMPT('人员编码等于：', [人员编码], '') AND 
+    YGXX.XM LIKE @PROMPT('姓名：', [姓名], '') AND 
+    CASE WHEN BDA_DEPARTMENT.DEPARTMENT_ABBR IS NULL THEN BDA_DEPARTMENT.DEPARTMENT_NAME ELSE BDA_DEPARTMENT.DEPARTMENT_ABBR END = @PROMPT('部门简称等于：', [部门简称], '') AND 
+    YGXX.RESIDENTLABLE LIKE @PROMPT('籍贯：', [籍贯], '')

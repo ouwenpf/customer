@@ -1,0 +1,36 @@
+SELECT SUM((year(getdate())-year(YGXX.CSRQ)))/count(YGXX.RYBM) "平均年龄1", year(YGXX.RZRQ)*100+month(YGXX.RZRQ) "入职年月1", year(YGXX.LZRQ)*100+month(YGXX.LZRQ) "离职年月1", isnull((case when YGXX.XW like '%其他%'  or YGXX.XW is null  then YGXX.XL
+else YGXX.XW
+end),'空') "学位学历1", YGXX.XM "姓名"
+FROM "ETL"."YGXX" 
+GROUP BY year(YGXX.RZRQ)*100+month(YGXX.RZRQ), year(YGXX.LZRQ)*100+month(YGXX.LZRQ), isnull((case when YGXX.XW like '%其他%'  or YGXX.XW is null  then YGXX.XL
+else YGXX.XW
+end),'空'), YGXX.XM
+
+
+改写如下 :
+
+SELECT 
+    SUM((EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM YGXX.CSRQ))) / COUNT(YGXX.RYBM) AS "平均年龄1", 
+    (EXTRACT(YEAR FROM YGXX.RZRQ) * 100 + EXTRACT(MONTH FROM YGXX.RZRQ)) AS "入职年月1", 
+    (EXTRACT(YEAR FROM YGXX.LZRQ) * 100 + EXTRACT(MONTH FROM YGXX.LZRQ)) AS "离职年月1", 
+    COALESCE(
+        (CASE 
+            WHEN YGXX.XW LIKE '%其他%' OR YGXX.XW IS NULL THEN YGXX.XL
+            ELSE YGXX.XW 
+         END), 
+        '空'
+    ) AS "学位学历1", 
+    YGXX.XM AS "姓名"
+FROM 
+    "ETL"."YGXX"
+GROUP BY 
+    (EXTRACT(YEAR FROM YGXX.RZRQ) * 100 + EXTRACT(MONTH FROM YGXX.RZRQ)), 
+    (EXTRACT(YEAR FROM YGXX.LZRQ) * 100 + EXTRACT(MONTH FROM YGXX.LZRQ)), 
+    COALESCE(
+        (CASE 
+            WHEN YGXX.XW LIKE '%其他%' OR YGXX.XW IS NULL THEN YGXX.XL
+            ELSE YGXX.XW 
+         END), 
+        '空'
+    ), 
+    YGXX.XM;

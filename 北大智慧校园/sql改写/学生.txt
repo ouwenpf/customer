@@ -1,0 +1,62 @@
+SELECT XSXX.ZCZT "注册状态", XSXX.XY "学院", XSXX.XH "学号", XSXX.XM "姓名", XSXX.XB "性别", XSXX.XSDQZT "学生当前状态", XSXX.ZJLX "证件类型", XSXX.FZZJH "证件号", XSXX.CSNY "出生日期", TIMESTAMPDIFF(YEAR,to_date(XSXX.CSNY, 'yyyymmdd'),CURDATE()) "年龄", XSXX.MZ "民族", XSXX.XQ "校区", XSXX.XSLB "学生类别", XSXX.HYZK "婚姻状况", XSXX.ZZMM "政治面貌", XSXX.GJDQ "国家地区", XSXX.WGATQ "外港澳台侨", XSXX.XXFS "学习方式", XSXX.RXNY "入学年月", XSXX.RXFS "入学方式", XSXX.NJ "年级", XSXX.XZ "学制", XSXX.PYCC "培养层次", XSXX.DSDM "导师代码", XSXX.DS "导师", XSXX.JGSF "籍贯省份", XSXX.SYD "生源地", XSXX.DXBYYX "大学毕业院校", XSXX.SSBYYX "硕士毕业院校", XSXX.YGWDW "原工作单位", XSXX.WPDWLB "委培单位类别", XSXX.WPDW "委培单位", XSXX.WPDWSS "委培单位省市", XSXX.ZYDM "专业代码", XSXX.ZYMC "专业名称", XSXX.YJ1FXMC "研究方向名称", XSXX.YJFXM "研究方向码", XSXX.SXWSJ "授学位时间", XSXX.TSXM "特殊项目", XSXX.XKML "学科门类", XSXX.JSXYNY "结束学业年月", XSXX.JYZBYSJ "结业转毕业时间", XSXX.LQLB "录取类别", XSXX.WGATQ "是否留学生", case  when XSXX.ZZMM='中共党员' or XSXX.ZZMM='中共预备党员' 
+then '中共党员'
+else '其它'
+end "党员信息", case  when XSXX.MZ='01'
+then '汉族'
+else '其它'
+end "民族信息"
+FROM "ETL"."XSXX" 
+
+
+改写如下:
+
+
+SELECT 
+    XSXX.ZCZT AS "注册状态", 
+    XSXX.XY AS "学院", 
+    XSXX.XH AS "学号", 
+    XSXX.XM AS "姓名", 
+    XSXX.XB AS "性别", 
+    XSXX.XSDQZT AS "学生当前状态", 
+    XSXX.ZJLX AS "证件类型", 
+    XSXX.FZZJH AS "证件号", 
+    XSXX.CSNY AS "出生日期", 
+    DATE_PART('year', CURRENT_DATE) - DATE_PART('year', to_date(XSXX.CSNY, 'yyyymmdd')) AS "年龄", 
+    XSXX.MZ AS "民族", 
+    XSXX.XQ AS "校区", 
+    XSXX.XSLB AS "学生类别", 
+    XSXX.HYZK AS "婚姻状况", 
+    XSXX.ZZMM AS "政治面貌", 
+    XSXX.GJDQ AS "国家地区", 
+    XSXX.WGATQ AS "外港澳台侨", 
+    XSXX.XXFS AS "学习方式", 
+    XSXX.RXNY AS "入学年月", 
+    XSXX.RXFS AS "入学方式", 
+    XSXX.NJ AS "年级", 
+    XSXX.XZ AS "学制", 
+    XSXX.PYCC AS "培养层次", 
+    XSXX.DSDM AS "导师代码", 
+    XSXX.DS AS "导师", 
+    XSXX.JGSF AS "籍贯省份", 
+    XSXX.SYD AS "生源地", 
+    XSXX.DXBYYX AS "大学毕业院校", 
+    XSXX.SSBYYX AS "硕士毕业院校", 
+    XSXX.YGWDW AS "原工作单位", 
+    XSXX.WPDWLB AS "委培单位类别", 
+    XSXX.WPDW AS "委培单位", 
+    XSXX.WPDWSS AS "委培单位省市", 
+    XSXX.ZYDM AS "专业代码", 
+    XSXX.ZYMC AS "专业名称", 
+    XSXX.YJ1FXMC AS "研究方向名称", 
+    XSXX.YJFXM AS "研究方向码", 
+    XSXX.SXWSJ AS "授学位时间", 
+    XSXX.TSXM AS "特殊项目", 
+    XSXX.XKML AS "学科门类", 
+    XSXX.JSXYNY AS "结束学业年月", 
+    XSXX.JYZBYSJ AS "结业转毕业时间", 
+    XSXX.LQLB AS "录取类别", 
+    XSXX.WGATQ AS "是否留学生", 
+    CASE WHEN XSXX.ZZMM IN ('中共党员', '中共预备党员') THEN '中共党员' ELSE '其它' END AS "党员信息", 
+    CASE WHEN XSXX.MZ = '01' THEN '汉族' ELSE '其它' END AS "民族信息"
+FROM 
+    "ETL"."XSXX" XSXX

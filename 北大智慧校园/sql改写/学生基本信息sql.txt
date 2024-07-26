@@ -1,0 +1,22 @@
+SELECT XSXX.ZCZT "注册状态", XSXX.XY "学院", XSXX.XH "学号", XSXX.XM "姓名", XSXX.XB "性别", XSXX.XSDQZT "学生当前状态", XSXX.ZJLX "证件类型", XSXX.FZZJH "证件号", XSXX.CSNY "出生日期", XSXX.MZ "民族", XSXX.XQ "校区", XSXX.XSLB "学生类别", XSXX.HYZK "婚姻状况", XSXX.ZZMM "政治面貌", XSXX.GJDQ "国家地区", XSXX.WGATQ "外港澳台侨", XSXX.XXFS "学习方式", XSXX.RXNY "入学年月", XSXX.RXFS "入学方式", XSXX.NJ "年级", XSXX.XZ "学制", XSXX.PYCC "培养层次", XSXX.DSDM "导师代码", XSXX.DS "导师", XSXX.JGSF "籍贯省份", XSXX.SYD "生源地", XSXX.DXBYYX "大学毕业院校", XSXX.SSBYYX "硕士毕业院校", XSXX.YGWDW "原工作单位", XSXX.WPDWLB "委培单位类别", XSXX.WPDW "委培单位", XSXX.WPDWSS "委培单位省市", XSXX.ZYDM "专业代码", XSXX.ZYMC "专业名称", XSXX.YJ1FXMC "研究方向名称", XSXX.YJFXM "研究方向码", XSXX.SXWSJ "授学位时间", XSXX.TSXM "特殊项目", XSXX.XKML "学科门类", XSXX.JSXYNY "结束学业年月", XSXX.JYZBYSJ "结业转毕业时间", XSXX.LQLB "录取类别", XSXX.WGATQ "是否留学生", case  when XSXX.ZZMM='中共党员' or XSXX.ZZMM='中共预备党员' 
+then '中共党员'
+else '其它'
+end "党员信息", case  when XSXX.MZ='01'
+then '汉族'
+else '其它'
+end "民族信息", TIMESTAMPDIFF(YEAR,to_date(XSXX.CSNY, 'yyyymmdd'),CURDATE()) "年龄"
+FROM "ETL"."XSXX" 
+INNER JOIN "ETL"."BDA_DEPARTMENT"  ON BDA_DEPARTMENT.DEPARTMENT_NAME = XSXX.XY
+WHERE (BDA_DEPARTMENT.DEPARTMENT_TYPE=1) 
+AND (XSXX.ZCZT = @PROMPT('注册状态等于：', [注册状态], '')
+AND XSXX.XY = @PROMPT('学院等于：', [学院], '')
+AND XSXX.WGATQ = @PROMPT('外港澳台侨等于：', [外港澳台侨], '')
+AND XSXX.XSDQZT = @PROMPT('学生当前状态等于：', [学生当前状态], '')
+AND XSXX.ZZMM = @PROMPT('政治面貌等于：', [政治面貌], '')
+AND XSXX.XM  LIKE  @PROMPT('姓名：', [姓名], ''))
+
+
+
+问题出在SQL语句中使用了 @PROMPT，这是一种用于交互式查询的语法，通常在一些数据库客户端工具中支持，但并不是所有数据库系统原生支持的语法。在大多数数据库系统中，直接使用 @PROMPT 是无法识别的，因此需要使用相应数据库系统支持的变量绑定或者动态参数替代方式来实现这种交互式查询的效果。
+
+通常来说，可以通过应用程序或者特定的数据库客户端工具来实现这种交互式查询，而不是直接在 SQL 查询语句中使用 @PROMPT。如果你正在使用某个特定的数据库客户端工具，建议查阅该工具的文档或者帮助文件，了解如何正确地使用变量绑定或者参数化查询来达到你的交互式查询需求。
