@@ -1,0 +1,108 @@
+【kunlun源】
+psql postgres://abc:abc@192.168.0.21:47001/postgres
+mysql -h192.168.0.21 -P47002 -uabc -pabc
+mysql协议：set extra_syntax_mode='TdEngine';
+SET MAX_BINARY_DISPLAY_WIDTH 10000;
+【tdengine源】
+登录客户端需要在21机器上操作，其他机器没有client
+taos -h 192.168.0.21 -p'taosdata' -P6030
+
+
+【tdengine目标】
+登录客户端需要在22机器上操作，其他机器没有client
+taos -h 192.168.0.22 -p'taosdata' -P6030
+
+
+【mysql5.7.25】
+mysql -uroot -pjames123 -P3306 -h192.168.0.22
+
+
+【es源】
+192.168.0.19机器上
+后台启动：
+su - es
+cd /usr/local/elasticsearch/
+bin/elasticsearch -d
+
+【es目标】
+192.168.0.22机器上
+后台启动：
+su - es
+cd /usr/local/elasticsearch/
+bin/elasticsearch -d
+
+
+【mongo源】
+192.168.0.19机器上：
+启动：
+sudo su -
+cd /usr/local/mongodb/bin
+mongod -f /usr/local/mongodb/bin/mongod_data1.conf
+mongod -f /usr/local/mongodb/bin/mongod_data2.conf
+exit
+mongo --host 192.168.0.19 --port 27018
+
+
+【mongo目标】
+192.168.0.22机器上：
+sudo su -
+/usr/local/mongodb/bin/mongod --port 27017 --fork --dbpath=/nvme2/data1/mongodata/ --logpath=/nvme2/data1/mongologs/mongodb.log --bind_ip_all --logappend&
+exit
+mongo --host 192.168.0.22 --port 27017
+
+
+【MariaDB源】
+192.168.0.19机器上：
+19上mariadb目录：/home/kunlun/mariadb
+mysql -h192.168.0.19 -P13306 -uroot -proot  
+
+
+
+
+
+
+
+
+
+
+
+
+客户环境
+
+MariaDB Galera Cluster:
+ 读写分离2节点+1个选举节点、haproxy+keepalive
+ mariadb:10.5.11
+ Galera:4.8
+
+Redis Cluster:6.0.4
+ 3主3从
+
+Mongodb sharded Cluster：4.4
+ 3个mongos
+ 3个config
+ 3个shard
+
+Rabbitmq：3.8.9
+ 3节点集群；haproxy+keepalive
+
+Elasticsearch Cluster:7.15
+ 3节点集群
+
+docker-compose 部署方式
+
+mongodb差不多1T ,es只有几十G 
+mariadb 500G  
+
+
+
+
+mariadb:
+10.9.31.51:3307
+用户名：root
+密码：Tcp567
+
+es:
+10.9.31.204:9200
+
+MongoDB：
+mongo.uri=mongodb://root:Tcp567@10.9.31.205:27017/?authSource=admin

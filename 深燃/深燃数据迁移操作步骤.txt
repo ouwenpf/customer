@@ -1,0 +1,418 @@
+
+
+
+
+【导出，时间窗口：每日13:00-17:30】
+步骤1：
+登录到10.9.31.43机器上
+例如：执行如下导出命令
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_wh where receive_time>='2024-09-01 00:00:00.000' and receive_time<'2024-10-01 00:00:00.000' >> /szgas/tddump/meter_wh_9.csv;" >> insert.log 2>&1 &
+
+________
+
+[device_meter_record]
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-01-15 00:00:00.000' and receive_time<'2024-02-01 00:00:00.000' >> /szgas/tddump/device_meter_record_1.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-02-01 00:00:00.000' and receive_time<'2024-03-01 00:00:00.000' >> /szgas/tddump/device_meter_record_2.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-03-01 00:00:00.000' and receive_time<'2024-04-01 00:00:00.000' >> /szgas/tddump/device_meter_record_3.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-04-01 00:00:00.000' and receive_time<'2024-05-01 00:00:00.000' >> /szgas/tddump/device_meter_record_4.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-05-01 00:00:00.000' and receive_time<'2024-06-01 00:00:00.000' >> /szgas/tddump/device_meter_record_5.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-06-01 00:00:00.000' and receive_time<'2024-07-01 00:00:00.000' >> /szgas/tddump/device_meter_record_6.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-07-01 00:00:00.000' and receive_time<'2024-08-01 00:00:00.000' >> /szgas/tddump/device_meter_record_7.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-08-01 00:00:00.000' and receive_time<'2024-09-01 00:00:00.000' >> /szgas/tddump/device_meter_record_8.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-09-01 00:00:00.000' and receive_time<'2024-10-01 00:00:00.000' >> /szgas/tddump/device_meter_record_9.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-10-01 00:00:00.000' and receive_time<'2024-11-01 00:00:00.000' >> /szgas/tddump/device_meter_record_10.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-11-01 00:00:00.000' and receive_time<'2024-12-01 00:00:00.000' >> /szgas/tddump/device_meter_record_11.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2024-12-01 00:00:00.000' and receive_time<'2025-01-01 00:00:00.000' >> /szgas/tddump/device_meter_record_12.csv;" >> insert.log 2>&1 &
+
+________
+
+步骤2：
+scp到10.9.38.52服务器上
+
+scp -P 40022 -rp meter_wh_6.csv kunlun@10.9.38.52:/data1/tddumpdata
+
+kunlun用户密码：
+
+kunlun@2025
+
+________
+
+[device_meter_record]
+scp -P 40022 -rp device_meter_record_0115.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_2.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_3.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_4.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_5.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_6.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_7.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_8.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_9.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_10.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_11.csv kunlun@10.9.38.52:/data1/tddumpdata
+scp -P 40022 -rp device_meter_record_12.csv kunlun@10.9.38.52:/data1/tddumpdata
+
+
+
+________
+
+
+
+【导入】
+步骤1：
+切分文件进行导入，在10.9.38.52服务器上操作
+cd /data1/tddumpdata/
+mkdir meter_wh
+cd meter_wh
+mv ../meter_wh_4.csv ./ 
+split -C 256M --additional-suffix=".csv" -d meter_wh_4.csv meter_wh_4
+
+mv meter_wh_4.csv ../ 
+
+vim meter_wh_400.csv 删除第一行表头，保存退出
+
+如果有多个同表的CSV文件
+
+步骤2：
+生成导入语句
+#脚本需要修改copy语句的表名
+vim g.sh
+for i in `ls /data1/tddumpdata/meter_wh/*.csv`
+do
+echo "echo $i"
+echo "PGPASSWORD=abc psql -h10.9.38.52 -p23001 -Uabc postgres -c \"set search_path to device_shenzhen;copy meter_wh from '$i' with delimiter ',' csv quote '''' NULL 'NULL';\" "
+done
+
+
+sh g.sh > go.sh
+
+执行导入
+nohup sh go.sh > dump.log 2>&1 &
+
+查看日志导入是否正常
+tail -f dump.log
+
+
+[device_meter_record]
+split -C 256M --additional-suffix=".csv" -d device_meter_record_1.csv device_meter_record_1
+split -C 256M --additional-suffix=".csv" -d device_meter_record_2.csv device_meter_record_2
+split -C 256M --additional-suffix=".csv" -d device_meter_record_3.csv device_meter_record_3
+split -C 256M --additional-suffix=".csv" -d device_meter_record_4.csv device_meter_record_4
+split -C 256M --additional-suffix=".csv" -d device_meter_record_5.csv device_meter_record_5
+split -C 256M --additional-suffix=".csv" -d device_meter_record_6.csv device_meter_record_6
+split -C 256M --additional-suffix=".csv" -d device_meter_record_7.csv device_meter_record_7
+split -C 256M --additional-suffix=".csv" -d device_meter_record_8.csv device_meter_record_8
+split -C 256M --additional-suffix=".csv" -d device_meter_record_9.csv device_meter_record_9
+split -C 256M --additional-suffix=".csv" -d device_meter_record_10.csv device_meter_record_10
+split -C 256M --additional-suffix=".csv" -d device_meter_record_11.csv device_meter_record_11
+split -C 256M --additional-suffix=".csv" -d device_meter_record_12.csv device_meter_record_12
+
+
+
+
+
+
+【增量】
+
+【MD5sum】
+9f001713d2ceac6b33a4b36816d0182b  meter_wh_4.csv
+e6dd0d4f9e7efa6b4aa6651a518b86d8  meter_wh_5.csv
+2e0e162d7ca1401728e8368b0006adf3  meter_wh_6.csv
+7a404df46be9362c79a77a6ccc2bd7d8  meter_wh_7.csv
+ef0aaa4b87bf112dacbf7fb0be95dedc  meter_wh_8.csv
+072a4419f6a77f96b3bc8402f73befe1  meter_wh_9.csv
+0a81f5d48910088419276e6f7ebd1d46  meter_wh_10.csv
+b54275a71a088bb5e98fb5a27b2d3322  meter_wh_11.csv
+eb1b325274992e3ac2e1b8e3e5076532  meter_wh_12.csv
+
+7c6935b5abe935e97b4a746be896a20c  meter_wp_2.csv
+0e479bd1554d02b0079bad70630f1035  meter_wp_3.csv
+ff418eb89c08a228f06e3b2c020d460e  meter_wp_4.csv
+21ce45ce591b682d4e7449c1cf48096f  meter_wp_5.csv
+9bf94b6519d821c0ea17d3d434e823ae  meter_wp_6.csv
+174c14826386cc8fe43c2b9a59a4ff6b  meter_wp_7.csv
+95281f0ebcc1a7daab255215da3964c0  meter_wp_8.csv
+2abfdd63359128d2f85a4cd735fbae39  meter_wp_9.csv
+744a6383838adad445985ef6def3ccc2  meter_wp_10.csv
+c1008d3e5e08eff64398a59d115538e0  meter_wp_11.csv
+fdb2c43016b22293183f73eab51cd711  meter_wp_12.csv
+
+
+【注意事项】
+1.数据校验，全量完成后，进行数据同步校验。
+
+
+f255855bbff787ea7f19a7b6c542d6e9
+
+
+mysql -upgx -ppgx_pwd -h10.9.38.52 -P33501
+mysql -upgx -ppgx_pwd -h10.9.38.53 -P33501
+mysql -upgx -ppgx_pwd -h10.9.38.54 -P33501
+mysql -upgx -ppgx_pwd -h10.9.38.55 -P33501
+
+mysql -upgx -ppgx_pwd -h10.9.38.52 -P33504
+mysql -upgx -ppgx_pwd -h10.9.38.53 -P33504
+mysql -upgx -ppgx_pwd -h10.9.38.54 -P33504
+mysql -upgx -ppgx_pwd -h10.9.38.55 -P33504
+
+mysql -upgx -ppgx_pwd -h10.9.38.52 -P33507
+mysql -upgx -ppgx_pwd -h10.9.38.53 -P33507
+mysql -upgx -ppgx_pwd -h10.9.38.54 -P33507
+mysql -upgx -ppgx_pwd -h10.9.38.55 -P33507
+
+
+
+
+
+
+
+安装Excel文档来:
+
+select first(receive_time)  from meter_ where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<'2024-01-02 00:00:00.000'; 
+select max(receive_time)  from meter_  ; 
+
+
+
+select count(*)  from meter_ey where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-26 13:38:02.182';
+  count   
+----------
+ 1250565 
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ey where receive_time>'2025-01-26 13:38:02.182' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ey_2025-01-03m.csv;" >> insert.log 2>&1 &
+
+
+
+
+数据不一致建议重新导入2024年数据(昆仑数据多)
+select count(*)  from meter_em where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-08 10:59:18.815';
+  count        count   
+----------    ----------   
+ 53489776      52722172
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_em where receive_time>'2025-01-08 10:59:18.815' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_em_2025-01-03m.csv;" >> insert.log 2>&1 &
+
+
+
+数据不一致建议重新导入2024年数据(昆仑少一行数据)
+select count(*)  from meter_wh where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:59.432';
+  count        count   
+----------    ----------   
+ 442727923     442727924
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_wh where receive_time>'2024-12-31 23:59:59.432' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_wh_2025-01-03m.csv;" >> insert.log 2>&1 &
+
+
+select count(*)  from meter_ei where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-30 06:29:20.949';
+  count       
+----------     
+ 113785     
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ei where receive_time>'2025-01-30 06:29:20.949' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ei_2025-01-03m.csv;" >> insert.log 2>&1 &
+
+
+
+
+select count(*)  from meter_eh  where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:54:15.381';
+  count  
+---------
+ 2623989
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_eh where receive_time>'2024-12-31 23:54:15.381' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_eh_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+ 
+ 
+ select count(*)  from meter_ew  where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:53:00.874';
+  count  
+---------
+ 73552614
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ew where receive_time>'2024-12-31 23:53:00.874' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ew_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+ select count(*)  from meter_uw  where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-03-13 10:19:51.215';
+   count  
+---------
+ 24533
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_uw where receive_time>'2024-03-13 10:19:51.215' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_uw_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+
+数据量比较大后面导出.
+select count(*)  from   device_meter_record   where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:59.993';
+   count  
+---------
+ 2094051934 
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>'2024-12-31 23:59:59.993' and receive_time<'2025-02-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/device_meter_record_2025-01m.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2025-02-01 00:00:00.000' and receive_time<'2025-03-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/device_meter_record_2025-02m.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from device_meter_record where receive_time>='2025-03-01 00:00:00.000' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/device_meter_record_2025-03m.csv;"  >> insert.log 2>&1 &
+ 
+ 
+ 
+ select count(*)  from   meter_qh   where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:59.874';
+   count   
+----------
+ 33933113
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_qh where receive_time>'2024-12-31 23:59:59.874' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_qh_2025-01-03m.csv;" >> insert.log 2>&1 & 
+ 
+ 
+ 
+ select count(*)  from   monitor_meter_cp   where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:59.923';
+   count   
+----------
+ 57041302
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from monitor_meter_cp where receive_time>'2024-12-31 23:59:59.923' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/monitor_meter_cp_2025-01-03m.csv;" >> insert.log 2>&1 & 
+ 
+ 
+ 
+ 
+
+ select count(*)  from   meter_tj     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:57.403';
+  count  
+---------
+ 7493659
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_tj where receive_time>'2024-12-31 23:59:57.403' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_tj_2025-01-03m.csv;" >> insert.log 2>&1 & 
+
+ 
+ 
+ select count(*)  from   meter_eg   where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-31 11:04:50.572';
+ count  
+--------
+ 751806
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_eg where receive_time>'2025-01-31 11:04:50.572' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_eg_2025-01-03m.csv;" >> insert.log 2>&1 & 
+ 
+ 
+ select count(*)  from   meter_et   where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:58.787'; 
+  count  
+---------
+ 2265910
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_et where receive_time>'2024-12-31 23:59:58.787' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_et_2025-01-03m.csv;" >> insert.log 2>&1 &  
+ 
+ 
+ 
+ 
+ 数据量比较大后面导出,数据不一致
+ select count(*)  from   meter_wp   where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<'2024-12-31 23:59:59.993';  
+     count  
+---------
+ 1113138673   1115439164
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_wp where receive_time>'2024-12-31 23:59:59.993' and receive_time<'2025-02-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_wp_2025-01m.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_wp where receive_time>='2025-02-01 00:00:00.000' and receive_time<'2025-03-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_wp_2025-02m.csv;" >> insert.log 2>&1 &
+
+nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_wp where receive_time>='2025-03-01 00:00:00.000' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_wp_2025-03m.csv;" >> insert.log 2>&1 &
+
+
+
+
+ 
+ 
+ 
+ 
+ select count(*)  from   meter_ex     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:38:57.049';
+    count  
+---------
+ 7564821
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ex where receive_time>'2024-12-31 23:38:57.049' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ex_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+ select count(*)  from   meter_ek     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-31 06:00:14.259';
+     count  
+---------
+ 28880
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ek where receive_time>'2025-01-31 06:00:14.259' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ek_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+ select count(*)  from   monitor_meter_xl     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-30 23:19:44.281';
+      count  
+---------
+ 11741
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from monitor_meter_xl where receive_time>'2025-01-30 23:19:44.281' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/monitor_meter_xl_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+ select count(*)  from   meter_ee     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-31 10:50:46.433';
+  count  
+--------
+ 213318
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ee where receive_time>'2025-01-31 10:50:46.433' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ee_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+
+ select count(*)  from   meter_ez     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-31 11:31:36.399';
+  count  
+--------
+ 1315617
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ez where receive_time>'2025-01-31 11:31:36.399' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ez_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+
+数据量比较大后面导出
+ select count(*)  from   meter_ej     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:59.264';
+  count  
+--------
+ 351429913    + 88994326
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ej where receive_time>'2024-12-31 23:59:59.264' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ej_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+ select count(*)  from   meter_en     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-31 09:03:18.924';
+  count  
+--------
+ 21940 
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_en where receive_time>'2025-01-31 09:03:18.924' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_en_2025-01-03m.csv" >> insert.log 2>&1 &
+ 
+ 
+ 
+ 
+ 
+ select count(*)  from   meter_el     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:13.406';
+   count  
+---------
+ 1436617
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_el where receive_time>'2024-12-31 23:59:13.406' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_el_2025-01-03m.csv;" >> insert.log 2>&1 &
+
+
+
+select count(*)  from   monitor_device_meter_record     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:59:59.923';
+  count   
+----------
+ 57041293
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from monitor_device_meter_record where receive_time>'2024-12-31 23:59:59.923' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/monitor_device_meter_record_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+
+select count(*)  from   monitor_device_gwxl_record     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-31 09:19:22.541'; 
+ count 
+-------
+ 11756
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from monitor_device_gwxl_record where receive_time>'2025-01-31 09:19:22.541' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/monitor_device_gwxl_record_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+ 
+select count(*)  from   meter_eu     where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2025-01-31 09:45:07.053'; 
+ count 
+-------
+ 20592
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_eu where receive_time>'2025-01-31 09:45:07.053' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_eu_2025-01-03m.csv;" >> insert.log 2>&1 &
+ 
+ 
+
+select count(*)  from   meter_ef      where  receive_time>='2024-01-01 00:00:00.000'  and    receive_time<='2024-12-31 23:58:29.17'; 
+  count  
+---------
+ 2909812
+ nohup taos -h10.9.31.43 -P6030 -p'Tcp567##8' -uread -s "use device_shenzhen;select * from meter_ef where receive_time>'2024-12-31 23:58:29.17' and receive_time<'2025-04-01 00:00:00.000' >> /data1/tddumpdata/tdengine_dump/meter_ef_2025-01-03m.csv;" >> insert.log 2>&1 &  
